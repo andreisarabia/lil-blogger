@@ -1,6 +1,11 @@
 import Koa from 'koa';
 import Router from './Router';
-import Mercury from '@postlight/mercury-parser';
+import Mercury, { ParseResult } from '@postlight/mercury-parser';
+
+type ParseRequestOptions = {
+  url: string;
+  html: string;
+};
 
 export default class ArticleRouter extends Router {
   constructor() {
@@ -10,6 +15,13 @@ export default class ArticleRouter extends Router {
   }
 
   private async parse_article(ctx: Koa.ParameterizedContext): Promise<void> {
+    const { url = 'https://example.com', html = '' } = ctx.request
+      .body as ParseRequestOptions;
+
+    const result: ParseResult = await Mercury.parse(url, { html });
+    
+    ctx.body = result;
+
     console.log(
       await Mercury.parse('https://nytimes.com', {
         html: `

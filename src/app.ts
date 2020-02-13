@@ -1,6 +1,7 @@
 import Koa from 'koa';
+import koaBody from 'koa-body';
 import nextApp from 'next';
-import routers from './routes';
+import routers from './routes/routers';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
@@ -11,6 +12,8 @@ const start = async () => {
   await clientApp.prepare();
 
   const app = new Koa();
+
+  app.use(koaBody({ json: true }));
 
   routers.forEach(router => {
     app.use(router.middleware.routes()).use(router.middleware.allowedMethods());

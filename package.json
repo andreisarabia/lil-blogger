@@ -14,7 +14,6 @@
   "license": "ISC",
   "dependencies": {
     "@postlight/mercury-parser": "^2.2.0",
-    "@types/postlight__mercury-parser": "^2.2.2",
     "koa": "^2.11.0",
     "koa-router": "^8.0.7",
     "next": "^9.2.1",
@@ -26,6 +25,7 @@
     "@types/koa-router": "^7.4.0",
     "@types/react": "^16.9.19",
     "@types/react-dom": "^16.9.5",
+    "@types/postlight__mercury-parser": "^2.2.2",
     "nodemon": "^2.0.2",
     "typescript": "^3.7.5"
   }

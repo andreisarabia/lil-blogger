@@ -1,10 +1,10 @@
 import KoaRouter from 'koa-router';
 
 export default class Router {
-  private instance: KoaRouter;
+  protected instance: KoaRouter;
 
   protected constructor(prefix: string) {
-    this.instance = new KoaRouter();
+    this.instance = new KoaRouter({ prefix: `/api/${prefix}` });
   }
 
   public get middleware(): KoaRouter {

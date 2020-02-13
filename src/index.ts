@@ -1,8 +1,22 @@
 import Koa from 'koa';
 import KoaRouter from 'koa-router';
 import nextApp from 'next';
+import Mercury from '@postlight/mercury-parser';
 
 const start = async () => {
+  console.log(
+    await Mercury.parse('https://nytimes.com', {
+      html: `
+        <html>
+          <body>
+            <article>
+              <h1>Thunder (mascot)</h1>
+              <p>Thunder is the stage name for the horse who is the official live animal mascot for the Denver Broncos</p>
+            </article>
+          </body>
+        </html>`
+    })
+  );
   const clientApp = nextApp({ dir: './client', dev: true });
   const clientAppHandler = clientApp.getRequestHandler();
 
@@ -11,7 +25,18 @@ const start = async () => {
   const app = new Koa();
   const router = new KoaRouter();
 
-  router.get('*', async ctx => await clientAppHandler(ctx.req, ctx.res));
+  app.use(async (ctx, next) => {
+    if (ctx.path.startsWith('/api')) {
+      await next();
+    } else {
+      await clientAppHandler(ctx.req, ctx.res);
+      ctx.respond = false;
+    }
+  });
+
+  router.get('/api', async ctx => {
+    ctx.body = 'noice';
+  });
 
   app.use(router.routes()).use(router.allowedMethods());
 

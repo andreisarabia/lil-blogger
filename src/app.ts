@@ -16,14 +16,16 @@ const start = async () => {
   app.use(async (ctx, next) => {
     const start = Date.now();
 
-    await next().catch(err => {
-      throw err;
-    });
+    try {
+      await next();
+    } catch (error) {
+      throw error;
+    } finally {
+      const { method, path, status } = ctx;
+      const xResponseTime = Date.now() - start;
 
-    const { method, path, status } = ctx;
-    const xResponseTime = Date.now() - start;
-
-    console.log(`${method} ${path} (${status}) - ${xResponseTime}ms`);
+      console.log(`${method} ${path} (${status}) - ${xResponseTime}ms`);
+    }
   });
 
   app.use(koaBody({ json: true }));

@@ -1,5 +1,14 @@
-const Homepage = () => {
-  return <div>GG dudde</div>;
-};
+import React from 'react';
+import Header from '../components/Header';
+import App from '../components/App'
 
-export default Homepage;
+export default class HomePage extends React.Component {
+  render() {
+    return (
+      <div id='app-wrapper'>
+        <Header />
+        <App />
+      </div>
+    );
+  }
+}

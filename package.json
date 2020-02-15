@@ -4,8 +4,9 @@
   "description": "",
   "main": "src/app.ts",
   "scripts": {
-    "dev": "node_modules/.bin/tsc",
-    "dev:serve": "cross-env NODE_ENV=development node_modules/.bin/nodemon build/app.js",
+    "dev:server": "node_modules/.bin/tsc",
+    "dev:next": "cd ./client && next",
+    "dev:listen": "cross-env NODE_ENV=development node_modules/.bin/nodemon build/app.js",
     "build": "next build",
     "start": "cross-env NODE_ENV=production node server.js"
   },
@@ -14,13 +15,15 @@
   "license": "ISC",
   "dependencies": {
     "@postlight/mercury-parser": "^2.2.0",
+    "axios": "^0.19.2",
     "koa": "^2.11.0",
     "koa-body": "^4.1.1",
     "koa-router": "^8.0.7",
     "next": "^9.2.1",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
-    "striptags": "^3.1.1"
+    "striptags": "^3.1.1",
+    "styled-components": "^5.0.1"
   },
   "devDependencies": {
     "@types/koa": "^2.11.1",
@@ -28,6 +31,7 @@
     "@types/postlight__mercury-parser": "^2.2.2",
     "@types/react": "^16.9.19",
     "@types/react-dom": "^16.9.5",
+    "@types/styled-components": "^4.4.3",
     "cross-env": "^7.0.0",
     "nodemon": "^2.0.2",
     "typescript": "^3.7.5"

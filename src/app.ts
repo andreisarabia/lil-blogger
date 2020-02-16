@@ -1,6 +1,7 @@
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import nextApp from 'next';
+import Database from './lib/Database';
 import routers from './routes/routers';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -9,13 +10,12 @@ const start = async () => {
   const clientApp = nextApp({ dir: './client', dev: IS_DEV });
   const clientAppHandler = clientApp.getRequestHandler();
 
-  await clientApp.prepare();
+  await Promise.all([clientApp.prepare(), Database.initialize()]);
 
   const app = new Koa();
 
   app.use(async (ctx, next) => {
     const start = Date.now();
-
     try {
       await next();
     } catch (error) {
@@ -23,7 +23,6 @@ const start = async () => {
     } finally {
       const { method, path, status } = ctx;
       const xResponseTime = Date.now() - start;
-
       console.log(`${method} ${path} (${status}) - ${xResponseTime}ms`);
     }
   });
@@ -32,7 +31,8 @@ const start = async () => {
 
   routers.forEach(router => {
     console.log(router.allPaths);
-    app.use(router.middleware.routes()).use(router.middleware.allowedMethods());
+    app.use(router.middleware.routes());
+    app.use(router.middleware.allowedMethods());
   });
 
   app.use(async ctx => {

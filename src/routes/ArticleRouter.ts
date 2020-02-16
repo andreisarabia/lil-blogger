@@ -48,10 +48,10 @@ export default class ArticleRouter extends Router {
   constructor() {
     super('/article');
 
-    this.instance.post('/parse', ctx => this.parse_article(ctx));
+    this.instance.post('/save', ctx => this.save_article(ctx));
   }
 
-  private async parse_article(ctx: Koa.ParameterizedContext): Promise<void> {
+  private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url = 'https://nytimes.com', html = '' } = ctx.request
       .body as ParseRequestOptions;
 

@@ -1,81 +1,36 @@
-import Koa from 'koa';
 import Router from './Router';
-import Mercury, { ParseResult } from '@postlight/mercury-parser';
-import striptags from 'striptags';
-import { only_alphanumeric, remove_extra_whitespace } from '../util/functions';
-const mockData: ParseResult = require('../../data/examples/vox.json');
-
-mockData.content = striptags(
-  only_alphanumeric(remove_extra_whitespace(mockData.content)),
-  [
-    'div',
-    'figure',
-    'span',
-    'picture',
-    'source',
-    'figcaption',
-    'article',
-    'cite',
-    'p',
-    'a',
-    'strong',
-    'em',
-    'h1',
-    'h2',
-    'h3',
-    'h4',
-    'h5',
-    'h6',
-    'svg',
-    'aside',
-    'g',
-    'path'
-  ]
-);
-console.log(mockData);
+import Article from '../models/Article';
+import { is_url } from '../util/fn';
+import Koa from 'koa';
 
 type ParseRequestOptions = {
   url: string;
-  html: string;
 };
-
-interface ParseRequestResults extends ParseResult {
-  error: true;
-  message: string;
-}
 
 export default class ArticleRouter extends Router {
   constructor() {
     super('/article');
 
-    this.instance.post('/save', ctx => this.save_article(ctx));
+    this.instance
+      .get('/list', ctx => this.send_articles(ctx))
+      .post('/save', ctx => this.save_article(ctx));
+  }
+
+  private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
+    const articles: Article[] = await Article.find_all();
+    const articlesData = articles.map(article => article.info);
+
+    ctx.body = { articlesData };
   }
 
   private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url = 'https://nytimes.com', html = '' } = ctx.request
-      .body as ParseRequestOptions;
+    const { url } = ctx.request.body as ParseRequestOptions;
 
-    const result = (await Mercury.parse(url, { html })) as ParseRequestResults;
+    ctx.assert(is_url(url), 400, 'Cannot parse the given URL.');
 
-    if (result.error) {
-      console.error(result.error);
-      console.log(result);
-    }
+    const article = await Article.find(url);
+    await article.save();
 
-    ctx.body = result;
-
-    // console.log(
-    //   await Mercury.parse('https://nytimes.com', {
-    //     html: `
-    //     <html>
-    //       <body>
-    //         <article>
-    //           <h1>Thunder (mascot)</h1>
-    //           <p>Thunder is the stage name for the horse who is the official live animal mascot for the Denver Broncos</p>
-    //         </article>
-    //       </body>
-    //     </html>`
-    //   })
-    // );
+    ctx.body = { msg: 'ok' };
   }
 }

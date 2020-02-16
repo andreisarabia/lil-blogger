@@ -3,7 +3,7 @@ import Database from '../lib/Database';
 type SearchCriteria = {
   collection: string;
   criteria: object;
-  limit: number;
+  limit?: number;
 };
 
 export default class Model {
@@ -15,20 +15,23 @@ export default class Model {
     this.db = Database.instance(collection);
   }
 
-  protected async save(): Promise<this> {
-    const [error, results] = await this.db.insert(this.props);
+  public get info() {
+    return { ...this.props };
+  }
 
+  public async save(): Promise<this> {
+    const [error, results] = await this.db.insert(this.props);
     if (error) throw error;
 
-    this.props = { ...results };
-
+    const [props] = results.ops;
+    this.props = props;
     return this;
   }
 
   public static async search({
     collection,
     criteria,
-    limit = 1
+    limit
   }: SearchCriteria): Promise<object | object[]> {
     return Database.instance(collection).find(criteria, { limit });
   }

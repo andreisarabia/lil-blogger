@@ -4,13 +4,10 @@ import nextApp from 'next';
 import Database from './lib/Database';
 import routers from './routes/routers';
 
-const IS_DEV = process.env.NODE_ENV !== 'production';
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 const start = async () => {
-  const clientApp = nextApp({ dir: './client', dev: IS_DEV });
-  const clientAppHandler = clientApp.getRequestHandler();
-
-  await Promise.all([clientApp.prepare(), Database.initialize()]);
+  await Database.initialize();
 
   const app = new Koa();
 
@@ -35,10 +32,18 @@ const start = async () => {
     app.use(router.middleware.allowedMethods());
   });
 
-  app.use(async ctx => {
-    await clientAppHandler(ctx.req, ctx.res);
-    ctx.respond = false;
-  });
+  if (IS_PROD) {
+    // dev work on nuxt should use npm commands in package.json
+    const clientApp = nextApp({ dir: './client', dev: false });
+    const clientAppHandler = clientApp.getRequestHandler();
+
+    await clientApp.prepare();
+
+    app.use(async ctx => {
+      await clientAppHandler(ctx.req, ctx.res);
+      ctx.respond = false;
+    });
+  }
 
   app.listen(process.env.APP_PORT || 3000, () => {
     console.log('Listening on port 3000');

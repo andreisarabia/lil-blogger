@@ -57,9 +57,7 @@ export default class Database {
         result = await this.dbCollection.insertOne(dataObjs);
       }
 
-      const resultToReturn: QueryResults = { ops: result.ops };
-
-      return [null, resultToReturn];
+      return [null, { ops: result.ops } as QueryResults];
     } catch (error) {
       return [error, null];
     }

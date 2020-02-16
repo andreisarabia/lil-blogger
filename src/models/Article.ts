@@ -1,5 +1,5 @@
 import Model from './Model';
-import { remove_extra_whitespace } from '../util/functions';
+import { remove_extra_whitespace } from '../util/validators';
 import { ALLOWED_HTML_TAGS } from './constants';
 import striptags from 'striptags';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
@@ -7,7 +7,7 @@ import Mercury, { ParseResult } from '@postlight/mercury-parser';
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
 
-  constructor(protected props: ParseResult) {
+  constructor(protected props: ParseResult | object) {
     super(props, Article.collectionName);
   }
 
@@ -18,14 +18,26 @@ export default class Article extends Model {
       limit: 1
     })) as ParseResult;
 
-    if (articleData) return new Article(articleData);
+    if (!articleData) {
+      articleData = await Mercury.parse(url);
+      const cleanedContent = striptags(articleData.content, ALLOWED_HTML_TAGS);
+      articleData.content = remove_extra_whitespace(articleData.content);
+    }
 
-    articleData = await Mercury.parse(url);
-    const cleanedContent = striptags(articleData.content, ALLOWED_HTML_TAGS);
-    articleData.content = remove_extra_whitespace(articleData.content);
+    return new Article(articleData);
+  }
 
-    const newArticle = await new Article(articleData).save();
+  public static async find_all(): Promise<Article[]> {
+    const data = (await Model.search({
+      collection: Article.collectionName,
+      criteria: {},
+      limit: 0
+    })) as ParseResult[];
 
-    return newArticle;
+    const articles: Article[] = data.map(
+      articleData => new Article(articleData)
+    );
+
+    return articles;
   }
 }

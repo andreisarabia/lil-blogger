@@ -4,8 +4,13 @@ import {
   FindOneOptions,
   InsertOneWriteOpResult,
   InsertWriteOpResult,
-  MongoClient
+  MongoClient,
+  ObjectId
 } from 'mongodb';
+
+export type InsertResult = {
+  _id: ObjectId;
+};
 
 export type QueryResults = {
   insertedId?: string;

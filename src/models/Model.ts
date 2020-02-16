@@ -1,4 +1,4 @@
-import Database from '../lib/Database';
+import Database, { InsertResult } from '../lib/Database';
 
 type SearchCriteria = {
   collection: string;
@@ -23,7 +23,7 @@ export default class Model {
     const [error, results] = await this.db.insert(this.props);
     if (error) throw error;
 
-    const [props] = results.ops;
+    const { _id, ...props } = results.ops[0] as InsertResult;
     this.props = props;
     return this;
   }

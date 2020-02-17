@@ -9,13 +9,15 @@
     "rootDir": "./src",
     "outDir": "./build",
     "strictNullChecks": false,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*"
   ],
   "exclude": [
     "node_modules",
+    "./client"
   ],
-  "compileOnSave": true,
+  "compileOnSave": true
 }

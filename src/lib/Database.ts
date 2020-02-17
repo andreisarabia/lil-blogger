@@ -19,23 +19,23 @@ export type QueryResults = {
 };
 
 export default class Database {
-  private static dbClient: MongoClient;
+  private static client: MongoClient = null;
   private static dbCache = new Map<string, Database>();
 
   private dbCollection: Collection;
 
   private constructor(collectionName: string) {
-    this.dbCollection = Database.dbClient.db().collection(collectionName);
+    this.dbCollection = Database.client.db().collection(collectionName);
   }
 
   public static async initialize(): Promise<void> {
-    if (!Database.dbClient) {
+    if (!Database.client) {
       const start = Date.now();
 
       const mongoUri =
         process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
 
-      Database.dbClient = await MongoClient.connect(mongoUri, {
+      Database.client = await MongoClient.connect(mongoUri, {
         useNewUrlParser: true,
         useUnifiedTopology: true
       });
@@ -48,8 +48,9 @@ export default class Database {
 
   public static async shutdown_all_connections(): Promise<[Error, boolean]> {
     try {
-      const client = await Database.dbClient;
-      await client.close();
+      if (!Database.client) return [null, true];
+      await Database.client.close();
+      Database.client = null;
       return [null, true];
     } catch (error) {
       return [error, false];

@@ -7,7 +7,7 @@
     "dev:server": "node_modules/.bin/tsc",
     "dev:next": "cd ./client && next",
     "dev:listen": "cross-env NODE_ENV=development node_modules/.bin/nodemon build/app.js",
-    "build": "next build",
+    "build": "cd ./client && next build",
     "start": "cross-env NODE_ENV=production node server.js"
   },
   "keywords": [],

@@ -1,22 +1,23 @@
 import React from 'react';
 import axios from 'axios';
-import { ParseResult } from '@postlight/mercury-parser';
 import Header from '../components/Header';
-import ArticleApp from '../components/ArticleApp';
+import ArticleApp, { ParsedArticle } from '../components/ArticleApp';
 
-interface ParsedArticle {
-  name: string;
-}
-
-export default class HomePage extends React.Component<ParsedArticle> {
+export default class HomePage extends React.Component<ParsedArticle, {}> {
   constructor(props) {
     super(props);
   }
 
   static async getInitialProps(ctx) {
-    const { data } = await axios.get('http://localhost:3000/api/article/list');
+    try {
+      const { data } = await axios.get(
+        'http://localhost:3000/api/article/list'
+      );
 
-    return { data };
+      return { data };
+    } catch (error) {
+      return { data: null };
+    }
   }
 
   render() {
@@ -34,7 +35,7 @@ export default class HomePage extends React.Component<ParsedArticle> {
           }
         `}</style>
         <Header />
-        <ArticleApp name={this.props.name} />
+        <ArticleApp articleList={this.props.articleList} />
       </div>
     );
   }

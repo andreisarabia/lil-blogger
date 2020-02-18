@@ -1,8 +1,9 @@
+import striptags from 'striptags';
+import Mercury, { ParseResult } from '@postlight/mercury-parser';
+
 import Model from './Model';
 import { remove_extra_whitespace } from '../util/validators';
 import { ALLOWED_HTML_TAGS } from './constants';
-import striptags from 'striptags';
-import Mercury, { ParseResult } from '@postlight/mercury-parser';
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';

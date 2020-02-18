@@ -1,5 +1,10 @@
+import React from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
+import { ParseResult } from '@postlight/mercury-parser';
+
+export interface ParsedArticle {
+  articleList: ParseResult[];
+}
 
 const MainSection = styled.main`
   background: #352448;
@@ -26,17 +31,21 @@ const MainSection = styled.main`
   }
 `;
 
-const ArticleApp = props => {
-  return (
-    <MainSection>
-      <section className='article-list'>
-        <h2>Your Articles</h2>
-        <input type='search' placeholder='Search articles here...' />
-        <div className='articles'>{props.name}</div>
-      </section>
-      <section className='article-view'></section>
-    </MainSection>
-  );
-};
+export default class ArticleApp extends React.Component<ParsedArticle, {}> {
+  constructor(props) {
+    super(props);
+  }
 
-export default ArticleApp;
+  render() {
+    return (
+      <MainSection>
+        <section className='article-list'>
+          <h2>Your Articles</h2>
+          <input type='search' placeholder='Search articles here...' />
+          <div className='articles'>{this.props.articleList}</div>
+        </section>
+        <section className='article-view'></section>
+      </MainSection>
+    );
+  }
+}

@@ -21,7 +21,7 @@ export default class Article extends Model {
     if (!articleData) {
       articleData = await Mercury.parse(url);
       const cleanedContent = striptags(articleData.content, ALLOWED_HTML_TAGS);
-      articleData.content = remove_extra_whitespace(articleData.content);
+      articleData.content = remove_extra_whitespace(cleanedContent);
     }
 
     return new Article(articleData);

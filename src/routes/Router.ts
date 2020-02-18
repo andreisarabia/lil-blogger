@@ -13,11 +13,10 @@ export default class Router {
   }
 
   public get allPaths(): [string, string[]][] {
-    if (this.pathsMap.size === 0) {
-      this.instance.stack.forEach(layer => {
-        this.pathsMap.set(layer.path, layer.methods);
-      });
-    }
+    this.pathsMap.clear();
+    this.instance.stack.forEach(layer => {
+      this.pathsMap.set(layer.path, layer.methods);
+    });
     return [...this.pathsMap];
   }
 }

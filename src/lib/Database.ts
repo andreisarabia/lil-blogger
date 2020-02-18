@@ -30,8 +30,6 @@ export default class Database {
 
   public static async initialize(): Promise<void> {
     if (!Database.client) {
-      const start = Date.now();
-
       const mongoUri =
         process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
 
@@ -39,10 +37,6 @@ export default class Database {
         useNewUrlParser: true,
         useUnifiedTopology: true
       });
-
-      const delta = Date.now() - start;
-
-      console.log(`Took ${delta}ms to connect to database.`);
     }
   }
 

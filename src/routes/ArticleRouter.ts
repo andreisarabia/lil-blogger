@@ -1,7 +1,8 @@
+import Koa from 'koa';
+
 import Router from './Router';
 import Article from '../models/Article';
 import { is_url } from '../util/fn';
-import Koa from 'koa';
 
 type ParseRequestOptions = {
   url: string;

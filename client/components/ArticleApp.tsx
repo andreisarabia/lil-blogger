@@ -1,9 +1,10 @@
 import React from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import { ParseResult } from '@postlight/mercury-parser';
 
-export interface ParsedArticle {
-  articleList: ParseResult[];
+export interface ParsedArticle extends React.Props<any> {
+  articleList?: ParseResult[];
 }
 
 const MainSection = styled.main`
@@ -34,6 +35,18 @@ const MainSection = styled.main`
 export default class ArticleApp extends React.Component<ParsedArticle, {}> {
   constructor(props) {
     super(props);
+  }
+
+  static async getInitialProps(ctx) {
+    try {
+      const { data } = await axios.get(
+        'http://localhost:3000/api/article/list'
+      );
+
+      return { articleList: data } as ParsedArticle;
+    } catch (error) {
+      return { data: null };
+    }
   }
 
   render() {

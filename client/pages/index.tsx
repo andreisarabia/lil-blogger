@@ -1,10 +1,24 @@
 import React from 'react';
+import axios from 'axios';
 import Header from '../components/Header';
-import ArticleApp from '../components/ArticleApp';
+import ArticleApp, { ParsedArticle } from '../components/ArticleApp';
 
-export default class HomePage extends React.Component {
+export default class HomePage extends React.Component<ParsedArticle, {}> {
   constructor(props) {
     super(props);
+    this.state = { linkToAdd: '' };
+  }
+
+  static async getInitialProps(ctx) {
+    try {
+      const { data } = await axios.get(
+        'http://localhost:3000/api/article/list'
+      );
+
+      return { articleList: data } as ParsedArticle;
+    } catch (error) {
+      return { articleList: [] };
+    }
   }
 
   render() {
@@ -22,7 +36,7 @@ export default class HomePage extends React.Component {
           }
         `}</style>
         <Header />
-        <ArticleApp />
+        <ArticleApp articleList={this.props.articleList} />
       </div>
     );
   }

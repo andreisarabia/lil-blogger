@@ -28,7 +28,7 @@ export default class Server {
     console.timeEnd('db-startup-time');
   }
 
-  async start() {
+  public async start() {
     const clientAppHandler = this.clientApp.getRequestHandler();
 
     await Promise.all([
@@ -67,7 +67,7 @@ export default class Server {
     });
   }
 
-  static get instance() {
+  public static get instance() {
     singleton = singleton || new Server();
     return singleton;
   }

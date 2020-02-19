@@ -1,9 +1,15 @@
 import React from 'react';
 import axios from 'axios';
-import Header from '../components/Header';
-import ArticleApp, { ParsedArticle } from '../components/ArticleApp';
+import { ParseResult } from '@postlight/mercury-parser';
 
-export default class HomePage extends React.Component<ParsedArticle, {}> {
+import Header from '../components/Header';
+import ArticleApp from '../components/ArticleApp';
+
+interface ArticlesData extends React.Props<any> {
+  articlesData: ParseResult[];
+}
+
+export default class HomePage extends React.Component<ArticlesData> {
   constructor(props) {
     super(props);
     this.state = { linkToAdd: '' };
@@ -15,14 +21,13 @@ export default class HomePage extends React.Component<ParsedArticle, {}> {
         'http://localhost:3000/api/article/list'
       );
 
-      return { articleList: data } as ParsedArticle;
+      return data as ArticlesData;
     } catch (error) {
-      return { articleList: [] };
+      return { articlesList: [] };
     }
   }
 
   render() {
-    console.log(this.props);
     return (
       <div id='app-wrapper'>
         <style jsx global>{`
@@ -36,7 +41,7 @@ export default class HomePage extends React.Component<ParsedArticle, {}> {
           }
         `}</style>
         <Header />
-        <ArticleApp articleList={this.props.articleList} />
+        <ArticleApp articlesList={this.props.articlesData} />
       </div>
     );
   }

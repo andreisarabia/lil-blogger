@@ -2,8 +2,8 @@ import React from 'react';
 import styled from 'styled-components';
 import { ParseResult } from '@postlight/mercury-parser';
 
-export interface ParsedArticle extends React.Props<any> {
-  articleList: ParseResult[];
+interface ParsedArticle extends React.Props<any> {
+  articlesList: ParseResult[];
 }
 
 const MainSection = styled.main`
@@ -14,6 +14,8 @@ const MainSection = styled.main`
   border-radius: 0.9rem;
   margin: auto;
   width: 75%;
+  min-height: 70vh;
+  max-height: 95vh;
 
   .article-list {
     display: flex;
@@ -42,7 +44,12 @@ export default class ArticleApp extends React.Component<ParsedArticle, {}> {
         <section className='article-list'>
           <h2>Your Articles</h2>
           <input type='search' placeholder='Search articles here...' />
-          <div className='articles'>{this.props.articleList}</div>
+          <div className='articleList'>
+            {this.props.articlesList &&
+              this.props.articlesList.map(article => (
+                <p key={article.url}>{article.title}</p>
+              ))}
+          </div>
         </section>
         <section className='article-view'></section>
       </MainSection>

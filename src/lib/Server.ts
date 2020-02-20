@@ -36,6 +36,8 @@ export default class Server {
       this.initialize_database()
     ]);
 
+    this.apiApp.use(koaBody({ json: true }));
+
     this.apiApp.use(async (ctx, next) => {
       const start = Date.now();
       try {
@@ -43,13 +45,17 @@ export default class Server {
       } catch (error) {
         throw error;
       } finally {
-        const { method, path, status } = ctx;
-        const xResponseTime = Date.now() - start;
-        console.log(`${method} ${path} (${status}) - ${xResponseTime}ms`);
+        const xResponseTime = `${Date.now() - start}ms`;
+
+        console.log(
+          `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime}`
+        );
+
+        if (IS_DEV) {
+          ctx.set('X-Response-Time', xResponseTime);
+        }
       }
     });
-
-    this.apiApp.use(koaBody({ json: true }));
 
     routers.forEach(router => {
       console.log(router.allPaths);

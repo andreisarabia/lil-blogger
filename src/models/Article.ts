@@ -1,14 +1,16 @@
 import striptags from 'striptags';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 
-import Model from './Model';
+import Model, { BaseProps } from './Model';
 import { remove_extra_whitespace } from '../util/validators';
 import { ALLOWED_HTML_TAGS } from './constants';
+
+interface ArticleProps extends BaseProps, ParseResult {}
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
 
-  constructor(protected props: ParseResult | object) {
+  constructor(protected props: ArticleProps) {
     super(props, Article.collectionName);
   }
 
@@ -17,7 +19,7 @@ export default class Article extends Model {
       collection: Article.collectionName,
       criteria: { url },
       limit: 1
-    })) as ParseResult;
+    })) as ArticleProps;
 
     if (!articleData) {
       articleData = await Mercury.parse(url);
@@ -33,12 +35,20 @@ export default class Article extends Model {
       collection: Article.collectionName,
       criteria: {},
       limit: 0
-    })) as ParseResult[];
+    })) as ArticleProps[];
 
     const articles: Article[] = data.map(
       articleData => new Article(articleData)
     );
 
     return articles;
+  }
+
+  public static async delete(url: string): Promise<boolean> {
+    const wasRemoved = await Model.remove(Article.collectionName, {
+      url
+    });
+
+    return wasRemoved;
   }
 }

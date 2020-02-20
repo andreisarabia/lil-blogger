@@ -1,3 +1,5 @@
+import { FilterQuery, ObjectID } from 'mongodb';
+
 import Database, { InsertResult } from '../lib/Database';
 
 type SearchCriteria = {
@@ -6,17 +8,23 @@ type SearchCriteria = {
   limit?: number;
 };
 
+export interface BaseProps {
+  _id?: ObjectID;
+}
+
 export default class Model {
   private db: Database;
-  protected props: object;
+  protected props: BaseProps;
 
-  protected constructor(props = {}, collection: string) {
+  protected constructor(props: BaseProps, collection: string) {
     this.props = { ...props };
     this.db = Database.instance(collection);
   }
 
   public get info() {
-    return { ...this.props };
+    const dereferenceProps = { ...this.props };
+    delete dereferenceProps._id;
+    return dereferenceProps;
   }
 
   public async save(): Promise<this> {
@@ -25,14 +33,22 @@ export default class Model {
 
     const { _id, ...props } = results.ops[0] as InsertResult;
     this.props = props;
+
     return this;
   }
 
-  public static async search({
+  protected static async search({
     collection,
     criteria,
     limit
   }: SearchCriteria): Promise<object | object[]> {
     return Database.instance(collection).find(criteria, { limit });
+  }
+
+  protected static async remove(
+    collection: string,
+    criteria: FilterQuery<object>
+  ): Promise<boolean> {
+    return Database.instance(collection).delete(criteria);
   }
 }

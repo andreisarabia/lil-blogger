@@ -14,7 +14,8 @@ export default class ArticleRouter extends Router {
 
     this.instance
       .get('/list', ctx => this.send_articles(ctx))
-      .post('/save', ctx => this.save_article(ctx));
+      .put('/save', ctx => this.save_article(ctx))
+      .delete('/', ctx => this.delete_article(ctx));
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
@@ -27,11 +28,31 @@ export default class ArticleRouter extends Router {
   private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url } = ctx.request.body as ParseRequestOptions;
 
-    ctx.assert(is_url(url), 400, 'Cannot parse the given URL.');
+    if (is_url(url)) {
+      const article = await Article.find(url);
+      await article.save();
 
-    const article = await Article.find(url);
-    await article.save();
+      ctx.status = 200;
+      ctx.body = { msg: 'ok' };
+    } else {
+      ctx.status = 400;
+      ctx.body = {
+        msg: 'Cannot parse given URL.'
+      };
+    }
+  }
 
-    ctx.body = { msg: 'ok' };
+  private async delete_article(ctx: Koa.ParameterizedContext): Promise<void> {
+    const { url } = ctx.request.body as ParseRequestOptions;
+    const successfullyDeleted = await Article.delete(url);
+
+    if (successfullyDeleted) {
+      ctx.body = { msg: 'ok' };
+    } else {
+      ctx.status = 400;
+      ctx.body = {
+        msg: 'Could not delete the given URL.'
+      };
+    }
   }
 }

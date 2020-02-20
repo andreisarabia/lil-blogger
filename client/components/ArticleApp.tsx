@@ -23,6 +23,7 @@ const MainSection = styled.main`
     align-items: center;
     flex: 0.5;
   }
+
   .article-view {
     flex: 1;
   }
@@ -45,10 +46,9 @@ export default class ArticleApp extends React.Component<ParsedArticle, {}> {
           <h2>Your Articles</h2>
           <input type='search' placeholder='Search articles here...' />
           <div className='articleList'>
-            {this.props.articlesList &&
-              this.props.articlesList.map(article => (
-                <p key={article.url}>{article.title}</p>
-              ))}
+            {this.props.articlesList.map(article => (
+              <p key={article.url}>{article.title}</p>
+            ))}
           </div>
         </section>
         <section className='article-view'></section>

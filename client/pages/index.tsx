@@ -23,6 +23,8 @@ export default class HomePage extends React.Component<ArticlesData> {
 
       return data as ArticlesData;
     } catch (error) {
+      console.log(error);
+
       return { articlesList: [] };
     }
   }

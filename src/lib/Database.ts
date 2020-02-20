@@ -4,6 +4,7 @@ import {
   FindOneOptions,
   InsertOneWriteOpResult,
   InsertWriteOpResult,
+  FindAndModifyWriteOpResultObject,
   MongoClient,
   ObjectId
 } from 'mongodb';
@@ -82,6 +83,14 @@ export default class Database {
     }
 
     return results;
+  }
+
+  public async delete(criteria: FilterQuery<object>): Promise<boolean> {
+    const result: FindAndModifyWriteOpResultObject<any> = await this.dbCollection.findOneAndDelete(
+      criteria
+    );
+
+    return result.ok === 1;
   }
 
   public static instance(collectionName: string): Database {

@@ -85,7 +85,7 @@ export default class Database {
   ): Promise<object | object[] | any[]> {
     let results: object | object[] | any[];
 
-    if (options && options.limit === 1) {
+    if (options?.limit === 1) {
       results = await this.dbCollection.findOne(criteria);
     } else {
       results = await this.dbCollection.find(criteria, options).toArray();

@@ -29,8 +29,12 @@ export default class ArticleRouter extends Router {
     const { url } = ctx.request.body as ParseRequestOptions;
 
     if (is_url(url)) {
-      const article = await Article.find(url);
-      await article.save();
+      const alreadyExists = await Article.exists(url);
+
+      if (!alreadyExists) {
+        const article = await Article.create(url);
+        await article.save();
+      }
 
       ctx.status = 200;
       ctx.body = { msg: 'ok' };

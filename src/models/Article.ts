@@ -15,17 +15,20 @@ export default class Article extends Model {
   }
 
   public static async find(url: string): Promise<Article> {
-    let articleData = (await Model.search({
+    const articleData = (await Model.search({
       collection: Article.collectionName,
       criteria: { url },
       limit: 1
     })) as ArticleProps;
 
-    if (!articleData) {
-      articleData = await Mercury.parse(url);
-      const cleanedContent = striptags(articleData.content, ALLOWED_HTML_TAGS);
-      articleData.content = remove_extra_whitespace(cleanedContent);
-    }
+    return articleData ? new Article(articleData) : null;
+  }
+
+  public static async create(url: string): Promise<Article> {
+    const articleData: ParseResult = await Mercury.parse(url);
+
+    const cleanedContent = striptags(articleData.content, ALLOWED_HTML_TAGS);
+    articleData.content = remove_extra_whitespace(cleanedContent);
 
     return new Article(articleData);
   }
@@ -42,6 +45,11 @@ export default class Article extends Model {
     );
 
     return articles;
+  }
+
+  public static async exists(url: string): Promise<boolean> {
+    const article = await Article.find(url);
+    return Boolean(article);
   }
 
   public static async delete(url: string): Promise<boolean> {

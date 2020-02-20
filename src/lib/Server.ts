@@ -51,9 +51,7 @@ export default class Server {
           `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime}`
         );
 
-        if (IS_DEV) {
-          ctx.set('X-Response-Time', xResponseTime);
-        }
+        if (IS_DEV) ctx.set('X-Response-Time', xResponseTime);
       }
     });
 

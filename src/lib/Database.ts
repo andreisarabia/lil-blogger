@@ -52,6 +52,15 @@ export default class Database {
     }
   }
 
+  public static instance(collection: string): Database {
+    const cache = Database.dbCache;
+    if (!cache.has(collection)) {
+      const db = new Database(collection);
+      cache.set(collection, db);
+    }
+    return cache.get(collection);
+  }
+
   public async insert(
     dataObjs: object | object[]
   ): Promise<[Error, QueryResults]> {
@@ -91,14 +100,5 @@ export default class Database {
     );
 
     return result.ok === 1;
-  }
-
-  public static instance(collectionName: string): Database {
-    const cache = Database.dbCache;
-    if (!cache.has(collectionName)) {
-      const db = new Database(collectionName);
-      cache.set(collectionName, db);
-    }
-    return cache.get(collectionName);
   }
 }

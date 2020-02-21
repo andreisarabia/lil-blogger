@@ -32,11 +32,9 @@ export default class ArticleRouter extends Router {
       const alreadyExists = await Article.exists(url);
 
       if (!alreadyExists) {
-        const article = await Article.create(url);
-        await article.save();
+        await Article.create(url).then(article => article.save());
       }
 
-      ctx.status = 200;
       ctx.body = { msg: 'ok' };
     } else {
       ctx.status = 400;

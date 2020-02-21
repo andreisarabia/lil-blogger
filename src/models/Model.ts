@@ -21,12 +21,6 @@ export default class Model {
     this.db = Database.instance(collection);
   }
 
-  public get info() {
-    const dereferenceProps = { ...this.props };
-    delete dereferenceProps._id;
-    return dereferenceProps;
-  }
-
   public async save(): Promise<this> {
     const [error, results] = await this.db.insert(this.props);
     if (error) throw error;

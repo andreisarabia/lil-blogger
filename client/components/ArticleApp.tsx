@@ -2,8 +2,12 @@ import React from 'react';
 import styled from 'styled-components';
 import { ParseResult } from '@postlight/mercury-parser';
 
-interface ParsedArticle extends React.Props<any> {
+export interface ParsedArticle extends React.Props<any> {
   articlesList: ParseResult[];
+}
+
+interface ArticlesState {
+  viewingArticle: ParseResult;
 }
 
 const MainSection = styled.main`
@@ -25,7 +29,10 @@ const MainSection = styled.main`
   }
 
   .article-view {
+    display: flex;
+    flex-direction: column;
     flex: 1;
+    overflow: auto;
   }
 
   h2 {
@@ -34,9 +41,16 @@ const MainSection = styled.main`
   }
 `;
 
-export default class ArticleApp extends React.Component<ParsedArticle, {}> {
+export default class ArticleApp extends React.Component<
+  ParsedArticle,
+  ArticlesState
+> {
   constructor(props) {
     super(props);
+
+    this.state = {
+      viewingArticle: this.props.articlesList[0]
+    };
   }
 
   render() {
@@ -51,7 +65,14 @@ export default class ArticleApp extends React.Component<ParsedArticle, {}> {
             ))}
           </div>
         </section>
-        <section className='article-view'></section>
+        <section className='article-view'>
+          <h3>{this.state.viewingArticle.title}</h3>
+          <div
+            dangerouslySetInnerHTML={{
+              __html: this.state.viewingArticle.content
+            }}
+          />
+        </section>
       </MainSection>
     );
   }

@@ -14,6 +14,12 @@ export default class Article extends Model {
     super(props, Article.collectionName);
   }
 
+  public get info() {
+    const dereferenceProps = { ...this.props };
+    delete dereferenceProps._id;
+    return dereferenceProps;
+  }
+
   public static async find(url: string): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,

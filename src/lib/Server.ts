@@ -32,13 +32,11 @@ export default class Server {
     };
 
     if (IS_DEV) {
-      cspDirectives['default-src'].push('http://localhost/_nuxt');
-      cspDirectives['script-src'].push('http://localhost/_nuxt');
-      cspDirectives['style-src'].push('http://localhost/_nuxt');
-      cspDirectives['connect-src'].push('http://localhost/_nuxt');
+      cspDirectives['default-src'].push('http://localhost');
+      cspDirectives['script-src'].push('http://localhost');
+      cspDirectives['style-src'].push('http://localhost');
+      cspDirectives['connect-src'].push('http://localhost');
     }
-
-    console.log(cspDirectives);
 
     this.csp = cspDirectives;
   }
@@ -47,13 +45,9 @@ export default class Server {
     let header = '';
 
     for (const [src, directives] of Object.entries(this.csp)) {
-      const preppedDirectives = directives.map(directive => {
-        if (is_url(directive) || directive.startsWith('.*')) {
-          directive = `'${directive}'`;
-        }
-
-        return directive;
-      });
+      const preppedDirectives = directives.map(directive =>
+        is_url(directive) ? directive : `'${directive}'`
+      );
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
       header += header === '' ? `${directiveRule}` : `; ${directiveRule}`;
@@ -94,6 +88,9 @@ export default class Server {
 
     this.apiApp.use(async (ctx, next) => {
       const start = Date.now();
+
+      ctx.set(defaultApiHeaders);
+
       try {
         await next();
       } catch (error) {
@@ -116,7 +113,7 @@ export default class Server {
     });
 
     this.apiApp.use(async ctx => {
-      // ctx.set(defaultClientHeaders);
+      ctx.set(defaultClientHeaders);
       await clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
     });

@@ -11,21 +11,19 @@ interface ArticlesState {
 }
 
 const MainSection = styled.main`
-  background: #352448;
-  color: white;
   display: flex;
   justify-content: space-around;
   border-radius: 0.9rem;
+  padding: 1rem 2rem;
   margin: auto;
   width: 75%;
-  min-height: 70vh;
-  max-height: 95vh;
+  height: 100vh;
+  background: #e5deee;
+  border: 1px solid #918a8a;
 
-  .article-list {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  .article-section {
     flex: 0.5;
+    font-size: 1.05rem;
   }
 
   .article-view {
@@ -33,6 +31,14 @@ const MainSection = styled.main`
     flex-direction: column;
     flex: 1;
     overflow: auto;
+  }
+
+  .article-list {
+    width: 95%;
+  }
+
+  .article-list > p {
+    border-bottom: 1px solid rebeccapurple;
   }
 
   h2 {
@@ -56,14 +62,20 @@ export default class ArticleApp extends React.Component<
   render() {
     return (
       <MainSection>
-        <section className='article-list'>
+        <section className='article-section'>
           <h2>Your Articles</h2>
           <input type='search' placeholder='Search articles here...' />
-          <div className='articleList'>
-            {this.props.articlesList &&
-              this.props.articlesList.map(article => (
-                <p key={article.url}>{article.title}</p>
-              ))}
+          <div className='article-list'>
+            {this.props.articlesList.map(article => (
+              <p
+                key={article.url}
+                onClick={e =>
+                  this.setState(state => ({ viewingArticle: article }))
+                }
+              >
+                {article.title}
+              </p>
+            ))}
           </div>
         </section>
         <section className='article-view'>

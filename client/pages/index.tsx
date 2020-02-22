@@ -1,7 +1,7 @@
 import React from 'react';
 import axios from 'axios';
 
-import Header from '../components/Header';
+// import Header from '../components/Header';
 import ArticleApp, { ParsedArticle } from '../components/ArticleApp';
 
 export default class HomePage extends React.Component<ParsedArticle> {
@@ -31,14 +31,14 @@ export default class HomePage extends React.Component<ParsedArticle> {
         <style jsx global>{`
           body {
             margin: 0;
-            background: #221431;
+            background: #e5e1ea;
           }
 
           ul {
             list-style: none;
           }
         `}</style>
-        <Header />
+        {/* <Header /> */}
         <ArticleApp articlesList={this.props.articlesList} />
       </div>
     );

@@ -46,6 +46,7 @@ export default class Database {
       if (!Database.client) return [null, true];
       await Database.client.close();
       Database.client = null;
+
       return [null, true];
     } catch (error) {
       return [error, false];
@@ -58,6 +59,7 @@ export default class Database {
       const db = new Database(collection);
       cache.set(collection, db);
     }
+
     return cache.get(collection);
   }
 

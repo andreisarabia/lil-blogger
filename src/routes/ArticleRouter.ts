@@ -20,16 +20,16 @@ export default class ArticleRouter extends Router {
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
     const articles: Article[] = await Article.find_all();
-    const articlesData = articles.map(article => article.info);
+    const articlesList = articles.map(article => article.info);
 
-    ctx.body = { articlesData };
+    ctx.body = { articlesList };
   }
 
   private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url } = ctx.request.body as ParseRequestOptions;
 
     if (is_url(url)) {
-      const alreadyExists = await Article.exists(url);
+      const alreadyExists: boolean = await Article.exists(url);
 
       if (!alreadyExists) {
         await Article.create(url).then(article => article.save());

@@ -15,9 +15,10 @@ export default class Article extends Model {
   }
 
   public get info() {
-    const dereferenceProps = { ...this.props };
-    delete dereferenceProps._id;
-    return dereferenceProps;
+    const dereferencedProps = { ...this.props };
+    delete dereferencedProps._id;
+
+    return dereferencedProps;
   }
 
   public static async find(url: string): Promise<Article> {
@@ -31,12 +32,15 @@ export default class Article extends Model {
   }
 
   public static async create(url: string): Promise<Article> {
-    const articleData: ParseResult = await Mercury.parse(url);
+    const { content, ...restOfArticleData }: ParseResult = await Mercury.parse(
+      url
+    );
+    const cleanedContent = remove_extra_whitespace(
+      striptags(content, ALLOWED_HTML_TAGS)
+    );
+    const cleanData = { ...restOfArticleData, content: cleanedContent };
 
-    const cleanedContent = striptags(articleData.content, ALLOWED_HTML_TAGS);
-    articleData.content = remove_extra_whitespace(cleanedContent);
-
-    return new Article(articleData);
+    return new Article(cleanData as ArticleProps);
   }
 
   public static async find_all(): Promise<Article[]> {
@@ -45,7 +49,6 @@ export default class Article extends Model {
       criteria: {},
       limit: 0
     })) as ArticleProps[];
-
     const articles: Article[] = data.map(
       articleData => new Article(articleData)
     );
@@ -55,6 +58,7 @@ export default class Article extends Model {
 
   public static async exists(url: string): Promise<boolean> {
     const article = await Article.find(url);
+
     return Boolean(article);
   }
 

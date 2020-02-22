@@ -25,6 +25,7 @@ export default class HomePage extends React.Component<ParsedArticle> {
   }
 
   render() {
+    console.log(this.props);
     return (
       <div id='app-wrapper'>
         <style jsx global>{`

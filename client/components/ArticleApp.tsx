@@ -77,10 +77,11 @@ export default class ArticleApp extends React.Component<{}, ArticlesState> {
     const { data } = await axios.get('http://localhost:3000/api/article/list');
     const { articlesList } = data as ArticlesListResponseData;
     const sortedArticlesList = articlesList.reverse();
+    const [firstArticle] = sortedArticlesList;
 
     this.setState({
       articles: sortedArticlesList,
-      viewingArticle: sortedArticlesList[0]
+      viewingArticle: firstArticle
     });
   }
 

@@ -1,17 +1,40 @@
+import DOMPurify from 'dompurify';
 import striptags from 'striptags';
+import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
+import axios from 'axios';
 
 import Model, { BaseProps } from './Model';
 import { remove_extra_whitespace } from '../util/validators';
 import { ALLOWED_HTML_TAGS } from './constants';
 
-interface ArticleProps extends BaseProps, ParseResult {}
+export interface ArticleProps extends BaseProps, ParseResult {
+  canonicalUrl: string;
+}
+
+const extract_canonical_url = (dom: JSDOM): string => {
+  const linkTags = [...dom.window.document.querySelectorAll('link')];
+  const canonicalLinkTag = linkTags.find(tag => tag.rel === 'canonical');
+  return canonicalLinkTag ? canonicalLinkTag.href : null;
+};
+
+const parse_url_for_article_content = (url: string) => {};
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
 
   constructor(protected props: ArticleProps) {
     super(props, Article.collectionName);
+  }
+
+  public async update(propsToUpdate: Partial<ArticleProps>) {
+    const { url, canonicalUrl, ...restOfPropsToUpdate } = propsToUpdate;
+
+    for (const key in propsToUpdate) {
+      if (key in this.props && this.props[key] !== propsToUpdate[key]) {
+        this.props[key] = propsToUpdate[key];
+      }
+    }
   }
 
   public get info() {
@@ -24,7 +47,7 @@ export default class Article extends Model {
   public static async find(url: string): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,
-      criteria: { url },
+      criteria: { url, canonicalUrl: url },
       limit: 1
     })) as ArticleProps;
 
@@ -32,15 +55,23 @@ export default class Article extends Model {
   }
 
   public static async create(url: string): Promise<Article> {
-    const { content, ...restOfArticleData }: ParseResult = await Mercury.parse(
-      url
+    const { data: html }: { data: string } = await axios.get(url);
+    const canonicalUrl = extract_canonical_url(new JSDOM(html));
+    const {
+      content,
+      ...restOfArticleData
+    }: ParseResult = await Mercury.parse(url, { html });
+    const sanitizedContent = striptags(
+      DOMPurify.sanitize(content),
+      ALLOWED_HTML_TAGS
     );
-    const cleanedContent = remove_extra_whitespace(
-      striptags(content, ALLOWED_HTML_TAGS)
-    );
-    const cleanData = { ...restOfArticleData, content: cleanedContent };
+    const cleanData: ArticleProps = {
+      ...restOfArticleData,
+      content: remove_extra_whitespace(sanitizedContent),
+      canonicalUrl
+    };
 
-    return new Article(cleanData as ArticleProps);
+    return new Article(cleanData);
   }
 
   public static async find_all(): Promise<Article[]> {
@@ -54,12 +85,6 @@ export default class Article extends Model {
     );
 
     return articles;
-  }
-
-  public static async exists(url: string): Promise<boolean> {
-    const article = await Article.find(url);
-
-    return Boolean(article);
   }
 
   public static async delete(url: string): Promise<boolean> {

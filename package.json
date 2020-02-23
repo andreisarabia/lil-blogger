@@ -17,6 +17,8 @@
   "dependencies": {
     "@postlight/mercury-parser": "^2.2.0",
     "axios": "^0.19.2",
+    "dompurify": "^2.0.8",
+    "jsdom": "^16.2.0",
     "koa": "^2.11.0",
     "koa-body": "^4.1.1",
     "koa-router": "^8.0.8",
@@ -25,10 +27,11 @@
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "striptags": "^3.1.1",
-    "styled-components": "^5.0.1",
-    "uuid": "^3.4.0"
+    "styled-components": "^5.0.1"
   },
   "devDependencies": {
+    "@types/dompurify": "^2.0.1",
+    "@types/jsdom": "^16.1.0",
     "@types/koa": "^2.11.1",
     "@types/koa-router": "^7.4.0",
     "@types/mongodb": "^3.3.16",

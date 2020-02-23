@@ -1,7 +1,7 @@
 import Koa from 'koa';
 
 import Router from './Router';
-import Article from '../models/Article';
+import Article, { ArticleProps } from '../models/Article';
 import { is_url } from '../util/fn';
 
 type ParseRequestOptions = {
@@ -31,7 +31,10 @@ export default class ArticleRouter extends Router {
     if (is_url(url)) {
       let article = await Article.find(url);
 
-      if (!article) {
+      if (article) {
+        const propsToUpdate: Partial<ArticleProps> = { url, canonicalUrl: url };
+        await article.update(propsToUpdate);
+      } else {
         article = await Article.create(url);
         await article.save();
       }

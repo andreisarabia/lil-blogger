@@ -29,41 +29,6 @@ export default class Database {
     this.dbCollection = Database.client.db().collection(collectionName);
   }
 
-  public static async initialize(): Promise<void> {
-    if (!Database.client) {
-      const mongoUri =
-        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
-
-      Database.client = await MongoClient.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-      });
-    }
-  }
-
-  public static async shutdown_all_connections(): Promise<[Error, boolean]> {
-    try {
-      if (!Database.client) return [null, true];
-
-      await Database.client.close();
-      Database.client = null;
-
-      return [null, true];
-    } catch (error) {
-      return [error, false];
-    }
-  }
-
-  public static instance(collection: string): Database {
-    const cache = Database.dbCache;
-    if (!cache.has(collection)) {
-      const db = new Database(collection);
-      cache.set(collection, db);
-    }
-
-    return cache.get(collection);
-  }
-
   public async insert(
     dataObjs: object | object[]
   ): Promise<[Error, QueryResults]> {
@@ -103,5 +68,40 @@ export default class Database {
     );
 
     return result.ok === 1;
+  }
+
+  public static async initialize(): Promise<void> {
+    if (!Database.client) {
+      const mongoUri =
+        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
+
+      Database.client = await MongoClient.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+      });
+    }
+  }
+
+  public static async shutdown_all_connections(): Promise<[Error, boolean]> {
+    try {
+      if (!Database.client) return [null, true];
+
+      await Database.client.close();
+      Database.client = null;
+
+      return [null, true];
+    } catch (error) {
+      return [error, false];
+    }
+  }
+
+  public static instance(collection: string): Database {
+    const cache = Database.dbCache;
+    if (!cache.has(collection)) {
+      const db = new Database(collection);
+      cache.set(collection, db);
+    }
+
+    return cache.get(collection);
   }
 }

@@ -1,22 +1,14 @@
 import React from 'react';
 import axios from 'axios';
 
-// import Header from '../components/Header';
-import ArticleApp, { ParsedArticle } from '../components/ArticleApp';
+import ArticleApp from '../components/ArticleApp';
 
-export default class HomePage extends React.Component<ParsedArticle> {
+export default class HomePage extends React.Component {
   constructor(props) {
     super(props);
   }
 
-  static async getInitialProps(ctx) {
-    const { data } = await axios.get('http://localhost:3000/api/article/list');
-
-    return data as ParsedArticle;
-  }
-
   render() {
-    console.log(this.props);
     return (
       <div id='app-wrapper'>
         <style jsx global>{`
@@ -29,8 +21,7 @@ export default class HomePage extends React.Component<ParsedArticle> {
             list-style: none;
           }
         `}</style>
-        {/* <Header /> */}
-        <ArticleApp articlesList={this.props.articlesList} />
+        <ArticleApp />
       </div>
     );
   }

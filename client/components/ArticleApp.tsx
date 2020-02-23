@@ -1,16 +1,18 @@
 import React from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import { ParseResult } from '@postlight/mercury-parser';
 
-export interface ParsedArticle extends React.Props<any> {
-  articlesList: ParseResult[];
-}
-
 interface ArticlesState {
+  articles: ParseResult[];
   viewingArticle: ParseResult;
   showAddArticleInput: boolean;
   articleToAdd: string;
 }
+
+type ArticlesListResponseData = {
+  articlesList: ParseResult[];
+};
 
 const MainSection = styled.main`
   display: flex;
@@ -59,18 +61,49 @@ const MainSection = styled.main`
   }
 `;
 
-export default class ArticleApp extends React.Component<
-  ParsedArticle,
-  ArticlesState
-> {
+export default class ArticleApp extends React.Component<{}, ArticlesState> {
   constructor(props) {
     super(props);
 
     this.state = {
-      viewingArticle: this.props.articlesList[0],
+      viewingArticle: null,
       showAddArticleInput: false,
-      articleToAdd: ''
+      articleToAdd: '',
+      articles: []
     };
+  }
+
+  async componentDidMount() {
+    const { data } = await axios.get('http://localhost:3000/api/article/list');
+    const { articlesList } = data as ArticlesListResponseData;
+    const sortedArticlesList = articlesList.reverse();
+
+    this.setState({
+      articles: sortedArticlesList,
+      viewingArticle: sortedArticlesList[0]
+    });
+  }
+
+  private async handle_add_article(e: React.MouseEvent) {
+    try {
+      const params = { url: this.state.articleToAdd };
+      const { data } = await axios.put(
+        'http://localhost:3000/api/article/save',
+        params
+      );
+      console.log(data);
+
+      const { msg, article } = data as { msg: string; article: ParseResult };
+
+      if (msg === 'ok') {
+        this.setState({ articles: this.state.articles.concat(article) });
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      console.log(this.state.articleToAdd);
+      this.setState({ articleToAdd: '' });
+    }
   }
 
   private update_viewing_article(article: ParseResult) {
@@ -84,7 +117,12 @@ export default class ArticleApp extends React.Component<
   }
 
   render() {
-    const articleHtml = { __html: this.state.viewingArticle.content };
+    const articleSearchStyle = {
+      display: !this.state.showAddArticleInput ? 'block' : 'none'
+    };
+    const articleAddStyle = {
+      display: this.state.showAddArticleInput ? 'block' : 'none'
+    };
 
     return (
       <MainSection>
@@ -94,38 +132,56 @@ export default class ArticleApp extends React.Component<
             <button onClick={() => this.toggle_add_article_input()}>+</button>
           </div>
 
-          <form className='article-inputs' onSubmit={e => e.preventDefault()}>
+          <form
+            className='article-inputs'
+            onSubmit={e => e.preventDefault()}
+            style={{ display: 'flex' }}
+          >
             <input
               type='search'
               placeholder='Search articles here...'
-              style={{
-                display: !this.state.showAddArticleInput ? 'block' : 'none'
-              }}
+              style={articleSearchStyle}
             />
             <input
               type='text'
               placeholder='Add article link'
-              style={{
-                display: this.state.showAddArticleInput ? 'block' : 'none'
-              }}
+              style={articleAddStyle}
+              value={this.state.articleToAdd}
               onChange={e => this.setState({ articleToAdd: e.target.value })}
+            />
+            <input
+              type='submit'
+              value='Add'
+              style={articleAddStyle}
+              onClick={e => this.handle_add_article(e)}
             />
           </form>
 
           <div className='article-list'>
-            {this.props.articlesList.map(article => (
-              <p
-                key={article.url}
-                onClick={() => this.update_viewing_article(article)}
-              >
-                {article.title}
-              </p>
-            ))}
+            {this.state.articles.length > 0 &&
+              this.state.articles.map(article => (
+                <p
+                  key={article.url}
+                  onClick={() => this.update_viewing_article(article)}
+                >
+                  {article.title}
+                </p>
+              ))}
           </div>
         </section>
         <section className='article-view'>
-          <h3>{this.state.viewingArticle.title}</h3>
-          <div dangerouslySetInnerHTML={articleHtml} />
+          <h3>
+            {this.state.viewingArticle
+              ? this.state.viewingArticle.title
+              : 'Fetching articles...'}
+          </h3>
+          <div
+            dangerouslySetInnerHTML={{
+              __html: this.state.viewingArticle
+                ? this.state.viewingArticle.content
+                : null
+            }}
+          />
         </section>
       </MainSection>
     );

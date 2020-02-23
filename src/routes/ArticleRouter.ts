@@ -29,13 +29,14 @@ export default class ArticleRouter extends Router {
     const { url } = ctx.request.body as ParseRequestOptions;
 
     if (is_url(url)) {
-      const alreadyExists: boolean = await Article.exists(url);
+      let article = await Article.find(url);
 
-      if (!alreadyExists) {
-        await Article.create(url).then(article => article.save());
+      if (!article) {
+        article = await Article.create(url);
+        await article.save();
       }
 
-      ctx.body = { msg: 'ok' };
+      ctx.body = { msg: 'ok', article: article.info };
     } else {
       ctx.status = 400;
       ctx.body = {

@@ -7,10 +7,7 @@ import routers from '../routes/routers';
 import { is_url } from '../util/fn';
 
 type ContentSecurityPolicy = {
-  'default-src': string[];
-  'script-src': string[];
-  'style-src': string[];
-  'connect-src': string[];
+  [k: string]: string[];
 };
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -21,25 +18,14 @@ export default class Server {
   private apiApp = new Koa();
   private clientApp = nextApp({ dir: './client', dev: IS_DEV });
   private appPort = +process.env.APP_PORT || 3000;
-  private csp: ContentSecurityPolicy;
+  private csp: ContentSecurityPolicy = {
+    'default-src': ['self'],
+    'script-src': ['self', 'unsafe-inline'],
+    'style-src': ['self', 'unsafe-inline'],
+    'connect-src': ['self']
+  };
 
-  private constructor() {
-    const cspDirectives: ContentSecurityPolicy = {
-      'default-src': ['self'],
-      'script-src': ['self', 'unsafe-inline'],
-      'style-src': ['self', 'unsafe-inline'],
-      'connect-src': ['self']
-    };
-
-    if (IS_DEV) {
-      cspDirectives['default-src'].push('http://localhost');
-      cspDirectives['script-src'].push('http://localhost');
-      cspDirectives['style-src'].push('http://localhost');
-      cspDirectives['connect-src'].push('http://localhost');
-    }
-
-    this.csp = cspDirectives;
-  }
+  private constructor() {}
 
   private get cspHeader(): string {
     let header = '';
@@ -48,6 +34,9 @@ export default class Server {
       const preppedDirectives = directives.map(directive =>
         is_url(directive) ? directive : `'${directive}'`
       );
+
+      if (IS_DEV) preppedDirectives.push('http://localhost');
+
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
       header += header === '' ? `${directiveRule}` : `; ${directiveRule}`;
@@ -68,7 +57,7 @@ export default class Server {
     console.timeEnd('db-startup-time');
   }
 
-  public async start() {
+  public async start(): Promise<void> {
     const clientAppHandler = this.clientApp.getRequestHandler();
     const defaultClientHeaders = {
       'Content-Security-Policy': this.cspHeader
@@ -123,7 +112,7 @@ export default class Server {
     });
   }
 
-  public static get instance() {
+  public static get instance(): Server {
     singleton = singleton || new Server();
 
     return singleton;

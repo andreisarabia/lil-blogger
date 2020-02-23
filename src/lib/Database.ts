@@ -44,6 +44,7 @@ export default class Database {
   public static async shutdown_all_connections(): Promise<[Error, boolean]> {
     try {
       if (!Database.client) return [null, true];
+
       await Database.client.close();
       Database.client = null;
 

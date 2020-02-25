@@ -10,7 +10,6 @@ type SearchCriteria = {
 
 export interface BaseProps {
   _id?: ObjectID;
-  [index: string]: any;
 }
 
 export default class Model {

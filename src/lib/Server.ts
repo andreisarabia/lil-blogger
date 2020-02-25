@@ -17,8 +17,8 @@ let singleton: Server = null;
 export default class Server {
   private apiApp = new Koa();
   private clientApp = nextApp({ dir: './client', dev: IS_DEV });
-  private appPort = +process.env.APP_PORT || 3000;
-  private csp: ContentSecurityPolicy = {
+  private readonly appPort = +process.env.APP_PORT || 3000;
+  private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self'],
     'script-src': ['self', 'unsafe-inline'],
     'style-src': ['self', 'unsafe-inline'],
@@ -60,7 +60,7 @@ export default class Server {
   public async start(): Promise<void> {
     const clientAppHandler = this.clientApp.getRequestHandler();
     const defaultClientHeaders = {
-      'Content-Security-Policy': this.cspHeader
+      'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
     };
     const defaultApiHeaders = {
       'X-Content-Type-Options': 'nosniff',

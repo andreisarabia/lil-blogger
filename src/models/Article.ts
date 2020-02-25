@@ -27,13 +27,20 @@ export default class Article extends Model {
     super(props, Article.collectionName);
   }
 
-  public async update(propsToUpdate: Partial<ArticleProps>) {
-    const { url, canonicalUrl, ...restOfPropsToUpdate } = propsToUpdate;
+  private update_props<Key extends keyof ArticleProps>(
+    key: Key,
+    value: ArticleProps[Key]
+  ) {
+    this.props[key] = value;
+  }
 
-    for (const key in propsToUpdate) {
-      if (key in this.props && this.props[key] !== propsToUpdate[key]) {
-        this.props[key] = propsToUpdate[key];
-      }
+  public async update(propsToUpdate: Partial<ArticleProps>) {
+    type ArticlePropsKey = keyof ArticleProps;
+
+    for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
+      const updatedValue = propsToUpdate[key];
+      if (updatedValue === undefined) continue;
+      this.update_props(key, updatedValue);
     }
   }
 
@@ -57,17 +64,18 @@ export default class Article extends Model {
   public static async create(url: string): Promise<Article> {
     const { data: html }: { data: string } = await axios.get(url);
     const canonicalUrl = extract_canonical_url(new JSDOM(html));
-    const {
-      content,
-      ...restOfArticleData
-    }: ParseResult = await Mercury.parse(url, { html });
-    const sanitizedContent = striptags(
-      DOMPurify.sanitize(content),
-      ALLOWED_HTML_TAGS
+    const { content, ...restOfArticleData }: ParseResult = await Mercury.parse(
+      url,
+      {
+        html: DOMPurify.sanitize(html)
+      }
+    );
+    const cleanContent = remove_extra_whitespace(
+      striptags(content, ALLOWED_HTML_TAGS)
     );
     const cleanData: ArticleProps = {
       ...restOfArticleData,
-      content: remove_extra_whitespace(sanitizedContent),
+      content: cleanContent,
       canonicalUrl
     };
 

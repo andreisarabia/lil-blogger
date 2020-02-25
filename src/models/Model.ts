@@ -14,9 +14,8 @@ export interface BaseProps {
 
 export default class Model {
   private db: Database;
-  protected props: BaseProps;
 
-  protected constructor(props: BaseProps, collection: string) {
+  protected constructor(protected props: BaseProps, collection: string) {
     this.props = { ...props };
     this.db = Database.instance(collection);
   }

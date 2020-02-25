@@ -12,13 +12,28 @@ export interface ArticleProps extends BaseProps, ParseResult {
   canonicalUrl: string;
 }
 
+type ArticlePropsKey = keyof ArticleProps;
+
 const extract_canonical_url = (dom: JSDOM): string => {
   const linkTags = [...dom.window.document.querySelectorAll('link')];
   const canonicalLinkTag = linkTags.find(tag => tag.rel === 'canonical');
+
   return canonicalLinkTag ? canonicalLinkTag.href : null;
 };
 
-const parse_url_for_article_content = (url: string) => {};
+const parse_url_for_article_content = async (
+  url: string
+): Promise<ArticleProps> => {
+  const { data: html }: { data: string } = await axios.get(url);
+  const canonicalUrl = extract_canonical_url(new JSDOM(html));
+  const parsedData: ParseResult = await Mercury.parse(url, {
+    html: remove_extra_whitespace(DOMPurify.sanitize(html))
+  });
+
+  parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
+
+  return { ...parsedData, canonicalUrl } as ArticleProps;
+};
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
@@ -35,18 +50,16 @@ export default class Article extends Model {
   }
 
   public async update(propsToUpdate: Partial<ArticleProps>) {
-    type ArticlePropsKey = keyof ArticleProps;
-
     for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
       const updatedValue = propsToUpdate[key];
-      if (updatedValue === undefined) continue;
-      this.update_props(key, updatedValue);
+      if (updatedValue !== undefined) this.update_props(key, updatedValue);
     }
   }
 
-  public get info() {
+  public get info(): Omit<ArticleProps, '_id'> {
     const dereferencedProps = { ...this.props };
-    delete dereferencedProps._id;
+
+    Reflect.deleteProperty(dereferencedProps, '_id');
 
     return dereferencedProps;
   }
@@ -62,22 +75,7 @@ export default class Article extends Model {
   }
 
   public static async create(url: string): Promise<Article> {
-    const { data: html }: { data: string } = await axios.get(url);
-    const canonicalUrl = extract_canonical_url(new JSDOM(html));
-    const { content, ...restOfArticleData }: ParseResult = await Mercury.parse(
-      url,
-      {
-        html: DOMPurify.sanitize(html)
-      }
-    );
-    const cleanContent = remove_extra_whitespace(
-      striptags(content, ALLOWED_HTML_TAGS)
-    );
-    const cleanData: ArticleProps = {
-      ...restOfArticleData,
-      content: cleanContent,
-      canonicalUrl
-    };
+    const cleanData = await parse_url_for_article_content(url);
 
     return new Article(cleanData);
   }

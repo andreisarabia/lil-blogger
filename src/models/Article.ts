@@ -25,12 +25,11 @@ const extract_canonical_url = ({ window }: JSDOM): string => {
   return null;
 };
 
-const parse_url_for_article_content = async (
+const parse_url_for_article_data = async (
   url: string
 ): Promise<ArticleProps> => {
   const { data: html }: { data: string } = await axios.get(url);
-  const { window } = new JSDOM('');
-  const sanitizedHtml = createPurify(window as any).sanitize(
+  const sanitizedHtml = createPurify(new JSDOM('').window as any).sanitize(
     remove_extra_whitespace(html),
     {
       WHOLE_DOCUMENT: true,
@@ -41,10 +40,10 @@ const parse_url_for_article_content = async (
   const parsedData: ParseResult = await Mercury.parse(url, {
     html: sanitizedHtml
   });
-
   parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
+  const createdOn = new Date().toISOString();
 
-  return { ...parsedData, canonicalUrl } as ArticleProps;
+  return { ...parsedData, createdOn, canonicalUrl } as ArticleProps;
 };
 
 export default class Article extends Model {
@@ -64,8 +63,22 @@ export default class Article extends Model {
   public async update(propsToUpdate: Partial<ArticleProps>) {
     for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
       const updatedValue = propsToUpdate[key];
-      if (updatedValue !== undefined) this.update_props(key, updatedValue);
+
+      if (updatedValue === undefined) continue;
+
+      if (key === 'canonicalUrl') {
+        const updatedProps = await parse_url_for_article_data(
+          updatedValue as string
+        );
+
+        this.props = updatedProps;
+        break;
+      } else {
+        this.update_props(key, updatedValue);
+      }
     }
+
+    await this.save();
   }
 
   public get info(): Omit<ArticleProps, '_id'> {
@@ -87,8 +100,7 @@ export default class Article extends Model {
   }
 
   public static async create(url: string): Promise<Article> {
-    const cleanData = await parse_url_for_article_content(url);
-    cleanData.createdOn = new Date().toISOString();
+    const cleanData = await parse_url_for_article_data(url);
 
     return new Article(cleanData);
   }

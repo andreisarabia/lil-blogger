@@ -1,4 +1,3 @@
-import createPurify from 'dompurify';
 import striptags from 'striptags';
 import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
@@ -6,6 +5,7 @@ import axios from 'axios';
 
 import Model, { BaseProps } from './Model';
 import { remove_extra_whitespace } from '../util/validators';
+import { sanitize } from '../util/sanitizer';
 import { ALLOWED_HTML_TAGS } from './constants';
 
 export interface ArticleProps extends BaseProps, ParseResult {
@@ -15,7 +15,8 @@ export interface ArticleProps extends BaseProps, ParseResult {
 
 type ArticlePropsKey = keyof ArticleProps;
 
-const extract_canonical_url = ({ window }: JSDOM): string => {
+const extract_canonical_url = (html: string): string => {
+  const { window } = new JSDOM(html);
   const linkTags = window.document.querySelectorAll('link');
 
   for (const tag of linkTags) {
@@ -28,19 +29,14 @@ const extract_canonical_url = ({ window }: JSDOM): string => {
 const parse_url_for_article_data = async (
   url: string
 ): Promise<ArticleProps> => {
-  const { data: html }: { data: string } = await axios.get(url);
-  const sanitizedHtml = createPurify(new JSDOM('').window as any).sanitize(
-    remove_extra_whitespace(html),
-    {
-      WHOLE_DOCUMENT: true,
-      ADD_TAGS: ['link']
-    }
-  );
-  const canonicalUrl = extract_canonical_url(new JSDOM(sanitizedHtml)) || url;
-  const parsedData: ParseResult = await Mercury.parse(url, {
-    html: sanitizedHtml
-  });
+  const { data: dirtyHtml }: { data: string } = await axios.get(url);
+  const sanitizedHtml = sanitize(dirtyHtml, { ADD_TAGS: ['link'] });
+  const canonicalUrl = extract_canonical_url(sanitizedHtml) || url;
+  const html = remove_extra_whitespace(sanitizedHtml);
+  const parsedData: ParseResult = await Mercury.parse(url, { html });
+
   parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
+
   const createdOn = new Date().toISOString();
 
   return { ...parsedData, createdOn, canonicalUrl } as ArticleProps;

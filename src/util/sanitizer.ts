@@ -2,10 +2,10 @@ import createPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 
 const DEFAULT_PURIFY_CONFIG = { WHOLE_DOCUMENT: true };
-const { window } = new JSDOM('');
+const localPurifier = createPurify(new JSDOM('').window as any);
 
-export const sanitize = (str: string, options: createPurify.Config) => {
+export const sanitize = (html: string, options: createPurify.Config = {}) => {
   const sanitizerOpts = { ...DEFAULT_PURIFY_CONFIG, ...options };
 
-  return createPurify(window as any).sanitize(str, sanitizerOpts);
+  return localPurifier.sanitize(html, sanitizerOpts) as string;
 };

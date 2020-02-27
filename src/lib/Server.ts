@@ -57,7 +57,7 @@ export default class Server {
     console.timeEnd('db-startup-time');
   }
 
-  public async start(): Promise<void> {
+  private attach_middlewares() {
     const clientAppHandler = this.clientApp.getRequestHandler();
     const defaultClientHeaders = {
       'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
@@ -67,11 +67,6 @@ export default class Server {
       'X-Frame-Options': 'deny',
       'X-XSS-Protection': '1; mode=block'
     };
-
-    await Promise.all([
-      this.initialize_client_app(),
-      this.initialize_database()
-    ]);
 
     this.apiApp.use(koaBody({ json: true }));
 
@@ -106,7 +101,18 @@ export default class Server {
       await clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
     });
+  }
 
+  public async setup() {
+    await Promise.all([
+      this.initialize_client_app(),
+      this.initialize_database()
+    ]);
+
+    this.attach_middlewares();
+  }
+
+  public start(): void {
     this.apiApp.listen(this.appPort, () => {
       console.log(`Listening on port ${this.appPort}...`);
     });

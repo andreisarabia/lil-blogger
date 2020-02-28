@@ -18,7 +18,7 @@ const HomePageWrapper = styled.div`
   padding: 1rem 2rem;
   margin: auto;
   width: 90%;
-  height: 100vh;
+  height: 100%;
   background: #e5deee;
   border: 1px solid #918a8a;
 `;
@@ -73,6 +73,10 @@ export default class HomePage extends React.Component<
           body {
             margin: 0;
             background: #e5e1ea;
+          }
+          
+          body > div {
+            height: 100vh;
           }
 
           ul {

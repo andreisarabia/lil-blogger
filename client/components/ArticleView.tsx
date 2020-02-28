@@ -11,6 +11,10 @@ const ArticleViewSection = styled.section`
   flex-direction: column;
   flex: 1;
   overflow: auto;
+
+  .article-view {
+    padding: 1rem;
+  }
 `;
 
 export default class ArticleView extends React.Component<ArticleViewProps> {
@@ -24,6 +28,7 @@ export default class ArticleView extends React.Component<ArticleViewProps> {
       <ArticleViewSection>
         <h3>{article ? article.title : 'Fetching articles...'}</h3>
         <div
+          className='article-view'
           dangerouslySetInnerHTML={{ __html: article ? article.content : '' }}
         />
       </ArticleViewSection>

@@ -16,6 +16,7 @@ interface ArticlesListViewState {
 const ArticleListSection = styled.section`
   flex: 0.5;
   font-size: 1.05rem;
+  overflow: auto;
 
   h2 {
     align-self: flex-start;

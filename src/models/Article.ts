@@ -29,10 +29,13 @@ const parse_url_for_article_data = async (
   url: string
 ): Promise<ArticleProps> => {
   const { data: dirtyHtml }: { data: string } = await axios.get(url);
-  const sanitizedHtml = sanitize(dirtyHtml, { ADD_TAGS: ['link'] });
-  const canonicalUrl = extract_canonical_url(sanitizedHtml) || url;
-  const html = remove_extra_whitespace(sanitizedHtml);
-  const parsedData: ParseResult = await Mercury.parse(url, { html });
+  const html = sanitize(remove_extra_whitespace(dirtyHtml), {
+    ADD_TAGS: ['link']
+  });
+  const canonicalUrl = extract_canonical_url(html) || url;
+  const parsedData: ParseResult = await Mercury.parse(url, {
+    html: Buffer.from(html, 'utf8')
+  });
 
   parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
 

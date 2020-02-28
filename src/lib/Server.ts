@@ -11,6 +11,7 @@ type ContentSecurityPolicy = {
 };
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
+const SHOULD_COMPILE = !process.argv.includes('no-compile');
 
 let singleton: Server = null;
 
@@ -58,7 +59,6 @@ export default class Server {
   }
 
   private attach_middlewares() {
-    const clientAppHandler = this.clientApp.getRequestHandler();
     const defaultClientHeaders = {
       'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
     };
@@ -96,18 +96,26 @@ export default class Server {
       this.apiApp.use(router.middleware.allowedMethods());
     });
 
-    this.apiApp.use(async ctx => {
-      ctx.set(defaultClientHeaders);
-      await clientAppHandler(ctx.req, ctx.res);
-      ctx.respond = false;
-    });
+    if (SHOULD_COMPILE) {
+      const clientAppHandler = this.clientApp.getRequestHandler();
+
+      this.apiApp.use(async ctx => {
+        ctx.set(defaultClientHeaders);
+        await clientAppHandler(ctx.req, ctx.res);
+        ctx.respond = false;
+      });
+    }
   }
 
   public async setup() {
-    await Promise.all([
-      this.initialize_client_app(),
-      this.initialize_database()
-    ]);
+    if (SHOULD_COMPILE) {
+      await Promise.all([
+        this.initialize_client_app(),
+        this.initialize_database()
+      ]);
+    } else {
+      await this.initialize_database();
+    }
 
     this.attach_middlewares();
   }

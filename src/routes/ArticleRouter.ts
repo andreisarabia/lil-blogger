@@ -1,7 +1,7 @@
 import Koa from 'koa';
 
 import Router from './Router';
-import Article from '../models/Article';
+import Article, { ArticleProps } from '../models/Article';
 import { is_url } from '../util/fn';
 
 type ParseRequestOptions = {
@@ -14,24 +14,51 @@ export default class ArticleRouter extends Router {
 
     this.instance
       .get('/list', ctx => this.send_articles(ctx))
-      .post('/save', ctx => this.save_article(ctx));
+      .put('/save', ctx => this.save_article(ctx))
+      .delete('/', ctx => this.delete_article(ctx));
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
     const articles: Article[] = await Article.find_all();
-    const articlesData = articles.map(article => article.info);
+    const articlesList = articles.map(article => article.info);
 
-    ctx.body = { articlesData };
+    ctx.body = { articlesList };
   }
 
   private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url } = ctx.request.body as ParseRequestOptions;
 
-    ctx.assert(is_url(url), 400, 'Cannot parse the given URL.');
+    if (is_url(url)) {
+      let article = await Article.find(url);
 
-    const article = await Article.find(url);
-    await article.save();
+      if (article) {
+        const propsToUpdate: Partial<ArticleProps> = { url, canonicalUrl: url };
+        await article.update(propsToUpdate);
+      } else {
+        article = await Article.create(url);
+        await article.save();
+      }
 
-    ctx.body = { msg: 'ok' };
+      ctx.body = { msg: 'ok', article: article.info };
+    } else {
+      ctx.status = 400;
+      ctx.body = {
+        msg: 'Cannot parse given URL.'
+      };
+    }
+  }
+
+  private async delete_article(ctx: Koa.ParameterizedContext): Promise<void> {
+    const { url } = ctx.request.body as ParseRequestOptions;
+    const successfullyDeleted = await Article.delete(url);
+
+    if (successfullyDeleted) {
+      ctx.body = { msg: 'ok' };
+    } else {
+      ctx.status = 400;
+      ctx.body = {
+        msg: 'Could not delete the given URL.'
+      };
+    }
   }
 }

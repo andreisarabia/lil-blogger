@@ -4,6 +4,7 @@ import {
   FindOneOptions,
   InsertOneWriteOpResult,
   InsertWriteOpResult,
+  FindAndModifyWriteOpResultObject,
   MongoClient,
   ObjectId
 } from 'mongodb';
@@ -26,29 +27,6 @@ export default class Database {
 
   private constructor(collectionName: string) {
     this.dbCollection = Database.client.db().collection(collectionName);
-  }
-
-  public static async initialize(): Promise<void> {
-    if (!Database.client) {
-      const mongoUri =
-        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
-
-      Database.client = await MongoClient.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-      });
-    }
-  }
-
-  public static async shutdown_all_connections(): Promise<[Error, boolean]> {
-    try {
-      if (!Database.client) return [null, true];
-      await Database.client.close();
-      Database.client = null;
-      return [null, true];
-    } catch (error) {
-      return [error, false];
-    }
   }
 
   public async insert(
@@ -75,7 +53,7 @@ export default class Database {
   ): Promise<object | object[] | any[]> {
     let results: object | object[] | any[];
 
-    if (options && options.limit === 1) {
+    if (options?.limit === 1) {
       results = await this.dbCollection.findOne(criteria);
     } else {
       results = await this.dbCollection.find(criteria, options).toArray();
@@ -84,12 +62,46 @@ export default class Database {
     return results;
   }
 
-  public static instance(collectionName: string): Database {
-    const cache = Database.dbCache;
-    if (!cache.has(collectionName)) {
-      const db = new Database(collectionName);
-      cache.set(collectionName, db);
+  public async delete(criteria: FilterQuery<object>): Promise<boolean> {
+    const result: FindAndModifyWriteOpResultObject<any> = await this.dbCollection.findOneAndDelete(
+      criteria
+    );
+
+    return result.ok === 1;
+  }
+
+  public static async initialize(): Promise<void> {
+    if (!Database.client) {
+      const mongoUri =
+        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
+
+      Database.client = await MongoClient.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+      });
     }
-    return cache.get(collectionName);
+  }
+
+  public static async shutdown_all_connections(): Promise<[Error, boolean]> {
+    try {
+      if (!Database.client) return [null, true];
+
+      await Database.client.close();
+      Database.client = null;
+
+      return [null, true];
+    } catch (error) {
+      return [error, false];
+    }
+  }
+
+  public static instance(collection: string): Database {
+    const cache = Database.dbCache;
+    if (!cache.has(collection)) {
+      const db = new Database(collection);
+      cache.set(collection, db);
+    }
+
+    return cache.get(collection);
   }
 }

@@ -4,7 +4,7 @@ import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
 
 import Model, { BaseProps } from './Model';
-import { sanitize, remove_extra_whitespace } from "../util";
+import { sanitize, remove_extra_whitespace } from '../util';
 import { ALLOWED_HTML_TAGS } from './constants';
 
 export interface ArticleProps extends BaseProps, ParseResult {

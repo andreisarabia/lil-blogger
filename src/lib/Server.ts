@@ -17,7 +17,7 @@ let singleton: Server = null;
 export default class Server {
   private apiApp = new Koa();
   private clientApp = nextApp({ dir: './client', dev: IS_DEV });
-  private readonly appPort = +process.env.APP_PORT || 3000;
+  private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self'],
     'script-src': ['self', 'unsafe-inline'],

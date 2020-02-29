@@ -36,6 +36,17 @@ export default class HomePage extends React.Component<
     };
   }
 
+  componentDidMount = async () => {
+    const { data } = await axios.get('http://localhost:3000/api/article/list');
+    const { articlesList } = data as { articlesList: ParseResult[] };
+    const sortedArticlesList = articlesList.reverse();
+
+    this.setState({
+      articlesList: sortedArticlesList,
+      viewingArticle: sortedArticlesList[0]
+    });
+  };
+
   handle_add_article = async (link: string) => {
     const { data } = await axios.put('http://localhost:3000/api/article/save', {
       url: link
@@ -55,26 +66,18 @@ export default class HomePage extends React.Component<
     }));
   };
 
-  componentDidMount = async () => {
-    const { data } = await axios.get('http://localhost:3000/api/article/list');
-    const { articlesList } = data as { articlesList: ParseResult[] };
-    const sortedArticlesList = articlesList.reverse();
-
-    this.setState({
-      articlesList: sortedArticlesList,
-      viewingArticle: sortedArticlesList[0]
-    });
-  };
-
   render() {
     return (
       <HomePageWrapper>
         <style jsx global>{`
+          @import url('https://fonts.googleapis.com/css?family=Montserrat&display=swap');
+
           body {
+            font-family: Montserrat, Arial, sans-serif;
             margin: 0;
             background: #e5e1ea;
           }
-          
+
           body > div {
             height: 100vh;
           }

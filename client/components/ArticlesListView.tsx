@@ -94,8 +94,9 @@ export default class ArticlesListView extends React.Component<
           <input
             type='text'
             placeholder='Add article link'
-            value={this.state.articleLinkToAdd}
             style={articleAddStyle}
+            defaultValue={''}
+            onChange={e => this.setState({ articleLinkToAdd: e.target.value })}
           />
           <input
             type='submit'

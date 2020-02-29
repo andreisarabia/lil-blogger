@@ -20,9 +20,14 @@ export default class Server {
   private clientApp = nextApp({ dir: './client', dev: IS_DEV });
   private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
   private readonly csp: ContentSecurityPolicy = {
-    'default-src': ['self'],
-    'script-src': ['self', 'unsafe-inline'],
-    'style-src': ['self', 'unsafe-inline'],
+    'default-src': ['self', 'https://fonts.gstatic.com'],
+    'script-src': ['self'],
+    'style-src': [
+      'self',
+      'unsafe-inline',
+      'https://fonts.googleapis.com',
+      'https://fonts.gstatic.com'
+    ],
     'connect-src': ['self']
   };
 

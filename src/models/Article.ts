@@ -14,36 +14,6 @@ export interface ArticleProps extends BaseProps, ParseResult {
 
 type ArticlePropsKey = keyof ArticleProps;
 
-const extract_canonical_url = (html: string): string => {
-  const { window } = new JSDOM(html);
-  const linkTags = window.document.querySelectorAll('link');
-
-  for (const tag of linkTags) {
-    if (tag.rel === 'canonical') return tag.href;
-  }
-
-  return null;
-};
-
-const parse_url_for_article_data = async (
-  url: string
-): Promise<ArticleProps> => {
-  const { data: dirtyHtml }: { data: string } = await axios.get(url);
-  const html = sanitize(remove_extra_whitespace(dirtyHtml), {
-    ADD_TAGS: ['link']
-  });
-  const canonicalUrl = extract_canonical_url(html) || url;
-  const parsedData: ParseResult = await Mercury.parse(url, {
-    html: Buffer.from(html, 'utf8')
-  });
-
-  parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
-
-  const createdOn = new Date().toISOString();
-
-  return { ...parsedData, createdOn, canonicalUrl } as ArticleProps;
-};
-
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
 
@@ -58,21 +28,17 @@ export default class Article extends Model {
     this.props[key] = value;
   }
 
-  public async update(propsToUpdate: Partial<ArticleProps>) {
+  public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
-      const updatedValue = propsToUpdate[key];
-
-      if (updatedValue === undefined) continue;
+      if (propsToUpdate[key] === undefined) continue;
+      if (!(key in this.props)) continue;
 
       if (key === 'canonicalUrl') {
-        const updatedProps = await parse_url_for_article_data(
-          updatedValue as string
-        );
-
-        this.props = updatedProps;
+        // we want to get the original location's refreshed content
+        this.props = await Article.extract_url_data(propsToUpdate[key]);
         break;
       } else {
-        this.update_props(key, updatedValue);
+        this.update_props(key, propsToUpdate[key]);
       }
     }
 
@@ -98,7 +64,7 @@ export default class Article extends Model {
   }
 
   public static async create(url: string): Promise<Article> {
-    const cleanData = await parse_url_for_article_data(url);
+    const cleanData = await Article.extract_url_data(url);
 
     return new Article(cleanData);
   }
@@ -122,5 +88,32 @@ export default class Article extends Model {
     });
 
     return wasRemoved;
+  }
+
+  private static async extract_url_data(url: string): Promise<ArticleProps> {
+    const { data: dirtyHtml }: { data: string } = await axios.get(url);
+    const html = sanitize(remove_extra_whitespace(dirtyHtml), {
+      ADD_TAGS: ['link']
+    });
+    const canonicalUrl = Article.extract_canonical_url(html) || url;
+    const parsedData: ParseResult = await Mercury.parse(url, {
+      html: Buffer.from(html, 'utf-8')
+    });
+
+    parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
+
+    const createdOn = new Date().toISOString();
+
+    return { ...parsedData, createdOn, canonicalUrl } as ArticleProps;
+  }
+
+  private static extract_canonical_url(html: string): string {
+    const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
+
+    for (const tag of linkTags) {
+      if (tag.rel === 'canonical') return tag.href;
+    }
+
+    return null;
   }
 }

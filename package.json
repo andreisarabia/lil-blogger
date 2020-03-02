@@ -17,6 +17,7 @@
   "dependencies": {
     "@postlight/mercury-parser": "^2.2.0",
     "axios": "^0.19.2",
+    "chalk": "^3.0.0",
     "dompurify": "^2.0.8",
     "jsdom": "^16.2.0",
     "koa": "^2.11.0",

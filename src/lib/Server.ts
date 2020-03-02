@@ -1,6 +1,7 @@
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import nextApp from 'next';
+import chalk from 'chalk';
 
 import Database from '../lib/Database';
 import routers from '../routes/routers';
@@ -12,6 +13,8 @@ type ContentSecurityPolicy = {
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const SHOULD_COMPILE = !process.argv.includes('no-compile');
+
+const log = console.log;
 
 let singleton: Server = null;
 
@@ -27,8 +30,7 @@ export default class Server {
       'unsafe-inline',
       'https://fonts.googleapis.com',
       'https://fonts.gstatic.com'
-    ],
-    'connect-src': ['self']
+    ]
   };
 
   private constructor() {}
@@ -45,7 +47,7 @@ export default class Server {
 
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
-      header += header === '' ? `${directiveRule}` : `; ${directiveRule}`;
+      header += header === '' ? directiveRule : `; ${directiveRule}`;
     }
 
     return header;
@@ -64,9 +66,6 @@ export default class Server {
   }
 
   private attach_middlewares() {
-    const defaultClientHeaders = {
-      'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
-    };
     const defaultApiHeaders = {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'deny',
@@ -76,7 +75,7 @@ export default class Server {
     this.apiApp.use(koaBody({ json: true }));
 
     this.apiApp.use(async (ctx, next) => {
-      const start = Date.now();
+      const start = process.hrtime();
 
       ctx.set(defaultApiHeaders);
 
@@ -85,10 +84,16 @@ export default class Server {
       } catch (error) {
         throw error;
       } finally {
-        const xResponseTime = `${Date.now() - start}ms`;
+        const [seconds, nanoSeconds] = process.hrtime(start);
+        const xResponseTime = `${seconds * 1000 + nanoSeconds / 1000000}ms`;
+        const logMsg = `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime}`;
 
-        console.log(
-          `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime}`
+        log(
+          ctx.status >= 400
+            ? chalk.bgRed(logMsg)
+            : ctx.status >= 300
+            ? chalk.inverse(logMsg)
+            : chalk.cyan(logMsg)
         );
 
         if (IS_DEV) ctx.set('X-Response-Time', xResponseTime);
@@ -96,13 +101,16 @@ export default class Server {
     });
 
     routers.forEach(router => {
-      console.log(router.allPaths);
+      log(router.allPaths);
       this.apiApp.use(router.middleware.routes());
       this.apiApp.use(router.middleware.allowedMethods());
     });
 
     if (SHOULD_COMPILE) {
       const clientAppHandler = this.clientApp.getRequestHandler();
+      const defaultClientHeaders = {
+        'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
+      };
 
       this.apiApp.use(async ctx => {
         ctx.set(defaultClientHeaders);

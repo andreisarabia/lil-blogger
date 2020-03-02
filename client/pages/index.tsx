@@ -66,26 +66,9 @@ export default class HomePage extends React.Component<
     }));
   };
 
-  render() {
+  render = () => {
     return (
       <HomePageWrapper>
-        <style jsx global>{`
-          @import url('https://fonts.googleapis.com/css?family=Montserrat&display=swap');
-
-          body {
-            font-family: Montserrat, Arial, sans-serif;
-            margin: 0;
-            background: #e5e1ea;
-          }
-
-          body > div {
-            height: 100vh;
-          }
-
-          ul {
-            list-style: none;
-          }
-        `}</style>
         <ArticlesListView
           list={this.state.articlesList}
           onArticleAdd={this.handle_add_article}
@@ -94,5 +77,5 @@ export default class HomePage extends React.Component<
         <ArticleView focusedArticle={this.state.viewingArticle} />
       </HomePageWrapper>
     );
-  }
+  };
 }

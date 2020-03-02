@@ -1,9 +1,10 @@
 import React from 'react';
 import styled from 'styled-components';
-import { ParseResult } from '@postlight/mercury-parser';
+
+import { ArticleProps } from '../typings';
 
 interface ArticlesListViewProps {
-  list: ParseResult[];
+  list: ArticleProps[];
   onArticleAdd: (link: string) => void;
   onArticleFocus: (link: string) => void;
 }

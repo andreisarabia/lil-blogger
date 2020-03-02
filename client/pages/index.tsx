@@ -23,6 +23,15 @@ const HomePageWrapper = styled.div`
   border: 1px solid #918a8a;
 `;
 
+const sort_by_date = (firstArticle, secondArticle) => {
+  const aMilleseconds = new Date(firstArticle.createdOn).getMilliseconds();
+  const bMilleseconds = new Date(secondArticle.createdOn).getMilliseconds();
+
+  if (aMilleseconds > bMilleseconds) return 1;
+  if (aMilleseconds < bMilleseconds) return -1;
+  return 0;
+};
+
 export default class HomePage extends React.Component<
   {},
   HomePageArticleState
@@ -39,7 +48,7 @@ export default class HomePage extends React.Component<
   componentDidMount = async () => {
     const { data } = await axios.get('http://localhost:3000/api/article/list');
     const { articlesList } = data as { articlesList: ArticleProps[] };
-    const sortedArticlesList = articlesList.reverse();
+    const sortedArticlesList = articlesList.sort(sort_by_date);
 
     this.setState({
       articlesList: sortedArticlesList,
@@ -55,7 +64,8 @@ export default class HomePage extends React.Component<
 
     if (msg === 'ok') {
       this.setState(state => ({
-        articlesList: [...state.articlesList, article]
+        articlesList: [...state.articlesList, article].sort(sort_by_date),
+        viewingArticle: article
       }));
     }
   };

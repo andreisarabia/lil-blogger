@@ -1,8 +1,9 @@
 import Koa from 'koa';
 
+import config from '../config';
 import Router from './Router';
 import Article from '../models/Article';
-import { is_url } from '../util/fn';
+import { sort_by_date, is_url } from '../util';
 
 type ParseRequestOptions = {
   url: string;
@@ -15,12 +16,17 @@ export default class ArticleRouter extends Router {
     this.instance
       .get('/list', ctx => this.send_articles(ctx))
       .put('/save', ctx => this.save_article(ctx))
-      .delete('/', ctx => this.delete_article(ctx));
+      .delete('/', ctx => this.delete_article(ctx))
+      .delete('/all', ctx => this.delete_all_articles(ctx));
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
     const articles: Article[] = await Article.find_all();
-    const articlesList = articles.map(article => article.info);
+    const articlesList = articles
+      ? articles
+          .map(article => article.info)
+          .sort((a, b) => sort_by_date(a.createdOn, b.createdOn))
+      : [];
 
     ctx.body = { articlesList };
   }
@@ -58,6 +64,30 @@ export default class ArticleRouter extends Router {
       ctx.body = {
         msg: 'Could not delete the given URL.'
       };
+    }
+  }
+
+  private async delete_all_articles(
+    ctx: Koa.ParameterizedContext
+  ): Promise<void> {
+    try {
+      await Article.delete_all();
+
+      ctx.body = { msg: 'ok' };
+    } catch (error) {
+      let msg: string;
+
+      if (error instanceof Error && error.stack) {
+        console.error(error.stack);
+
+        msg = config.IS_DEV
+          ? `Error deleting all articles: ${error.message}`
+          : 'fail';
+      } else {
+        msg = 'fail';
+      }
+
+      ctx.body = { msg };
     }
   }
 }

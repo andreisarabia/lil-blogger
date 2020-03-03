@@ -19,6 +19,11 @@ export type QueryResults = {
   ops?: object[];
 };
 
+/**
+ * Each instance of a database is only created once, through the
+ * static `instance` method.
+ * An instance represents a connection to a collection.
+ */
 export default class Database {
   private static client: MongoClient = null;
   private static dbCache = new Map<string, Database>();
@@ -70,6 +75,16 @@ export default class Database {
     return result.ok === 1;
   }
 
+  public async drop_collection(): Promise<boolean> {
+    try {
+      await this.dbCollection.drop();
+      return true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
+  }
+
   public static async initialize(): Promise<void> {
     if (!Database.client) {
       const mongoUri =
@@ -82,25 +97,10 @@ export default class Database {
     }
   }
 
-  public static async shutdown_all_connections(): Promise<[Error, boolean]> {
-    try {
-      if (!Database.client) return [null, true];
-
-      await Database.client.close();
-      Database.client = null;
-
-      return [null, true];
-    } catch (error) {
-      return [error, false];
-    }
-  }
-
   public static instance(collection: string): Database {
     const cache = Database.dbCache;
-    if (!cache.has(collection)) {
-      const db = new Database(collection);
-      cache.set(collection, db);
-    }
+
+    if (!cache.has(collection)) cache.set(collection, new Database(collection));
 
     return cache.get(collection);
   }

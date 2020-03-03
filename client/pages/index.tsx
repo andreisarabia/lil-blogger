@@ -48,11 +48,10 @@ export default class HomePage extends React.Component<
   componentDidMount = async () => {
     const { data } = await axios.get('http://localhost:3000/api/article/list');
     const { articlesList } = data as { articlesList: ArticleProps[] };
-    const sortedArticlesList = articlesList.sort(sort_by_date);
 
     this.setState({
-      articlesList: sortedArticlesList,
-      viewingArticle: sortedArticlesList[0]
+      articlesList,
+      viewingArticle: articlesList[0]
     });
   };
 

@@ -3,16 +3,14 @@ import koaBody from 'koa-body';
 import nextApp from 'next';
 import chalk from 'chalk';
 
+import config from '../config';
 import Database from '../lib/Database';
-import routers from '../routes/routers';
+import routers from '../routes';
 import { is_url } from '../util/fn';
 
 type ContentSecurityPolicy = {
   [k: string]: string[];
 };
-
-const IS_DEV = process.env.NODE_ENV !== 'production';
-const SHOULD_COMPILE = !process.argv.includes('no-compile');
 
 const log = console.log;
 
@@ -20,7 +18,7 @@ let singleton: Server = null;
 
 export default class Server {
   private apiApp = new Koa();
-  private clientApp = nextApp({ dir: './client', dev: IS_DEV });
+  private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
   private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
@@ -43,7 +41,7 @@ export default class Server {
         is_url(directive) ? directive : `'${directive}'`
       );
 
-      if (IS_DEV) preppedDirectives.push('http://localhost');
+      if (config.IS_DEV) preppedDirectives.push('http://localhost');
 
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
@@ -96,7 +94,7 @@ export default class Server {
             : chalk.cyan(logMsg)
         );
 
-        if (IS_DEV) ctx.set('X-Response-Time', xResponseTime);
+        if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
       }
     });
 
@@ -106,7 +104,7 @@ export default class Server {
       this.apiApp.use(router.middleware.allowedMethods());
     });
 
-    if (SHOULD_COMPILE) {
+    if (config.SHOULD_COMPILE) {
       const clientAppHandler = this.clientApp.getRequestHandler();
       const defaultClientHeaders = {
         'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
@@ -121,7 +119,7 @@ export default class Server {
   }
 
   public async setup() {
-    if (SHOULD_COMPILE) {
+    if (config.SHOULD_COMPILE) {
       await Promise.all([
         this.initialize_client_app(),
         this.initialize_database()

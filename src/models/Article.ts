@@ -2,6 +2,7 @@ import striptags from 'striptags';
 import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
+import { v5 as uuidv5 } from 'uuid';
 
 import Model, { BaseProps } from './Model';
 import { sanitize, remove_extra_whitespace } from '../util';
@@ -10,6 +11,8 @@ import { ALLOWED_HTML_TAGS } from './constants';
 export interface ArticleProps extends BaseProps, ParseResult {
   canonicalUrl: string;
   createdOn: string; // UTC
+  uniqueId: string;
+  slug: string;
 }
 
 type ArticlePropsKey = keyof ArticleProps;
@@ -75,11 +78,8 @@ export default class Article extends Model {
       criteria: {},
       limit: 0
     })) as ArticleProps[];
-    const articles: Article[] = data.map(
-      articleData => new Article(articleData)
-    );
 
-    return articles;
+    return data ? data.map(articleData => new Article(articleData)) : null;
   }
 
   public static async delete(url: string): Promise<boolean> {
@@ -90,21 +90,33 @@ export default class Article extends Model {
     return wasRemoved;
   }
 
+  public static delete_all(): Promise<boolean> {
+    return Model.drop_all(Article.collectionName);
+  }
+
   private static async extract_url_data(url: string): Promise<ArticleProps> {
     const { data: dirtyHtml }: { data: string } = await axios.get(url);
     const html = sanitize(remove_extra_whitespace(dirtyHtml), {
       ADD_TAGS: ['link']
     });
-    const canonicalUrl = Article.extract_canonical_url(html) || url;
     const parsedData: ParseResult = await Mercury.parse(url, {
       html: Buffer.from(html, 'utf-8')
     });
 
     parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
 
+    const canonicalUrl = Article.extract_canonical_url(html) || url;
     const createdOn = new Date().toISOString();
+    const uniqueId = uuidv5(url, uuidv5.URL); // client facing unique id, not Mongo's _id
+    const slug = Article.extract_slug(url);
 
-    return { ...parsedData, createdOn, canonicalUrl } as ArticleProps;
+    return {
+      ...parsedData,
+      createdOn,
+      canonicalUrl,
+      uniqueId,
+      slug
+    } as ArticleProps;
   }
 
   private static extract_canonical_url(html: string): string {
@@ -115,5 +127,12 @@ export default class Article extends Model {
     }
 
     return null;
+  }
+
+  private static extract_slug(url: string): string {
+    const { pathname } = new URL(url);
+    const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
+
+    return lastPartOfUrl;
   }
 }

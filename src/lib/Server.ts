@@ -72,7 +72,7 @@ export default class Server {
 
     this.apiApp.use(koaBody({ json: true }));
 
-    this.apiApp.use(async (ctx, next) => {
+    this.apiApp.use(async (ctx, next: Koa.Next) => {
       const start = process.hrtime();
 
       ctx.set(defaultApiHeaders);

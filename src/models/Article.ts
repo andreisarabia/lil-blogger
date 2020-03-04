@@ -2,7 +2,7 @@ import striptags from 'striptags';
 import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
-import { v5 as uuidv5 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 import Model, { BaseProps } from './Model';
 import { sanitize, remove_extra_whitespace } from '../util';
@@ -16,6 +16,8 @@ export interface ArticleProps extends BaseProps, ParseResult {
 }
 
 type ArticlePropsKey = keyof ArticleProps;
+
+type ArticleUrlExtractionData = Omit<ArticleProps, 'uniqueId'>;
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
@@ -33,12 +35,14 @@ export default class Article extends Model {
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
-      if (propsToUpdate[key] === undefined) continue;
       if (!(key in this.props)) continue;
+      if (propsToUpdate[key] === undefined) continue;
 
       if (key === 'canonicalUrl') {
         // we want to get the original location's refreshed content
-        this.props = await Article.extract_url_data(propsToUpdate[key]);
+        const newProps = await Article.extract_url_data(propsToUpdate[key]);
+
+        this.props = { ...this.props, ...newProps };
         break;
       } else {
         this.update_props(key, propsToUpdate[key]);
@@ -49,11 +53,9 @@ export default class Article extends Model {
   }
 
   public get info(): Omit<ArticleProps, '_id'> {
-    const dereferencedProps = { ...this.props };
+    const { _id, ...publicProps } = this.props;
 
-    Reflect.deleteProperty(dereferencedProps, '_id');
-
-    return dereferencedProps;
+    return publicProps;
   }
 
   public static async find(url: string): Promise<Article> {
@@ -68,8 +70,9 @@ export default class Article extends Model {
 
   public static async create(url: string): Promise<Article> {
     const cleanData = await Article.extract_url_data(url);
+    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
 
-    return new Article(cleanData);
+    return new Article({ ...cleanData, uniqueId });
   }
 
   public static async find_all(): Promise<Article[]> {
@@ -78,8 +81,11 @@ export default class Article extends Model {
       criteria: {},
       limit: 0
     })) as ArticleProps[];
+    const articles = data
+      ? data.map(articleData => new Article(articleData))
+      : null;
 
-    return data ? data.map(articleData => new Article(articleData)) : null;
+    return articles;
   }
 
   public static async delete(url: string): Promise<boolean> {
@@ -94,29 +100,24 @@ export default class Article extends Model {
     return Model.drop_all(Article.collectionName);
   }
 
-  private static async extract_url_data(url: string): Promise<ArticleProps> {
+  private static async extract_url_data(
+    url: string
+  ): Promise<ArticleUrlExtractionData> {
     const { data: dirtyHtml }: { data: string } = await axios.get(url);
     const html = sanitize(remove_extra_whitespace(dirtyHtml), {
       ADD_TAGS: ['link']
     });
-    const parsedData: ParseResult = await Mercury.parse(url, {
+    const { content, ...restOfResult }: ParseResult = await Mercury.parse(url, {
       html: Buffer.from(html, 'utf-8')
     });
 
-    parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
-
-    const canonicalUrl = Article.extract_canonical_url(html) || url;
-    const createdOn = new Date().toISOString();
-    const uniqueId = uuidv5(url, uuidv5.URL); // client facing unique id, not Mongo's _id
-    const slug = Article.extract_slug(url);
-
     return {
-      ...parsedData,
-      createdOn,
-      canonicalUrl,
-      uniqueId,
-      slug
-    } as ArticleProps;
+      ...restOfResult,
+      content: striptags(content, ALLOWED_HTML_TAGS),
+      createdOn: new Date().toISOString(),
+      canonicalUrl: Article.extract_canonical_url(html) || url,
+      slug: Article.extract_slug(url)
+    } as ArticleUrlExtractionData;
   }
 
   private static extract_canonical_url(html: string): string {

@@ -26,7 +26,7 @@ export default class Article extends Model {
     super(props, Article.collectionName);
   }
 
-  private update_props<Key extends keyof ArticleProps>(
+  private update_props<Key extends ArticlePropsKey>(
     key: Key,
     value: ArticleProps[Key]
   ) {

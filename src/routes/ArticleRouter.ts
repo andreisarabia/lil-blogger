@@ -10,6 +10,8 @@ type ParseRequestOptions = {
 };
 
 export default class ArticleRouter extends Router {
+  private readonly cookieName = '_article_app';
+
   constructor() {
     super('/article');
 

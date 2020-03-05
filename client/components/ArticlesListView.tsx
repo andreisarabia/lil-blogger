@@ -47,13 +47,13 @@ export default class ArticlesListView extends React.Component<
   ArticlesListViewProps,
   ArticlesListViewState
 > {
+  state = {
+    showAddArticleInput: false,
+    articleLinkToAdd: ''
+  };
+
   constructor(props) {
     super(props);
-
-    this.state = {
-      showAddArticleInput: false,
-      articleLinkToAdd: ''
-    };
   }
 
   toggle_article_input = () => {

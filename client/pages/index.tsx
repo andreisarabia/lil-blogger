@@ -36,13 +36,13 @@ export default class HomePage extends React.Component<
   {},
   HomePageArticleState
 > {
+  state = {
+    articlesList: [],
+    viewingArticle: null
+  };
+
   constructor(props) {
     super(props);
-
-    this.state = {
-      articlesList: [],
-      viewingArticle: null
-    };
   }
 
   componentDidMount = async () => {

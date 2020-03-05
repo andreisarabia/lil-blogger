@@ -17,7 +17,6 @@ type ContentSecurityPolicy = {
 };
 
 const log = console.log;
-const is_nuxt_path = (path: string) => path.startsWith('/_next');
 
 let singleton: Server = null;
 
@@ -32,9 +31,10 @@ export default class Server {
   private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
-    'script-src': ['self'],
+    'script-src': ['self', 'unsafe-inline'],
     'style-src': [
       'self',
+      'unsafe-inline',
       'https://fonts.googleapis.com',
       'https://fonts.gstatic.com'
     ]
@@ -47,14 +47,13 @@ export default class Server {
     httpOnly: true,
     autoCommit: false
   };
+  private cookieJar: string[] = ['__app'];
 
   private constructor() {
     this.clientAppHandler = this.clientApp.getRequestHandler();
   }
 
   private get cspHeader(): string {
-    const unsafeSrcs = ['script-src', 'style-src'];
-
     let header = '';
 
     Object.entries(this.csp).forEach(([src, directives]) => {
@@ -62,11 +61,7 @@ export default class Server {
         is_url(directive) ? directive : `'${directive}'`
       );
 
-      if (config.IS_DEV) {
-        preppedDirectives.push('http://localhost');
-
-        if (unsafeSrcs.includes(src)) preppedDirectives.push('unsafe-inline');
-      }
+      if (config.IS_DEV) preppedDirectives.push('http://localhost');
 
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
@@ -95,11 +90,28 @@ export default class Server {
       'X-XSS-Protection': '1; mode=block'
     };
 
+    const is_logged_in = (ctx: Koa.ParameterizedContext) =>
+      this.cookieJar.some(cookie => Boolean(ctx.cookies.get(cookie)));
+
     this.app.keys = ['_app'];
 
     this.app.use(koaSession(this.sessionConfig, this.app));
+
     this.app.use(koaBody({ json: true }));
-    this.app.use(async (ctx, next: Koa.Next) => {
+
+    this.app.use(async (ctx, next) => {
+      if (ctx.path.startsWith('/login') || is_logged_in(ctx)) {
+        await next();
+      } else {
+        if (ctx.path.startsWith('/_next')) {
+          await next();
+        } else {
+          ctx.redirect('/login');
+        }
+      }
+    });
+
+    this.app.use(async (ctx, next) => {
       const start = process.hrtime();
 
       ctx.set(defaultApiHeaders);
@@ -115,9 +127,8 @@ export default class Server {
 
         if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
 
-        if (ctx.session && !is_nuxt_path(ctx.path)) {
-          ctx.session.views = ctx.session.views || 0;
-          ctx.session.views += 1;
+        if (ctx.session) {
+          ctx.session.views = ctx.session.views + 1 || 1;
           log(`Views: ${ctx.session.views}`);
           await ctx.session.manuallyCommit();
         }
@@ -134,6 +145,7 @@ export default class Server {
 
     routers.forEach(router => {
       log(router.allPaths);
+      if (router.sessionCookie) this.cookieJar.push(router.sessionCookie);
       this.app.use(router.middleware.routes());
       this.app.use(router.middleware.allowedMethods());
     });
@@ -148,7 +160,7 @@ export default class Server {
       ctx.set(defaultClientHeaders);
       await this.clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
-      if (ctx.session) ctx.session = null;
+      if (ctx.session) ctx.session = null; // prevent err w/ Next so as to not send already sent headers
     });
   }
 

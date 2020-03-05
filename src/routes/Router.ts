@@ -1,6 +1,7 @@
 import KoaRouter from 'koa-router';
 
 export default class Router {
+  public readonly sessionCookie?: string;
   protected instance: KoaRouter;
   protected pathsMap = new Map<string, string[]>();
 

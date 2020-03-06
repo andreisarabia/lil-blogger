@@ -24,7 +24,6 @@ export default class Server {
   private app = new Koa();
   private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
   private apiPathsMethodsMap = new Map<string, string[]>();
-  private cookieJar: string[] = ['__app'];
   private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
 
   private clientAppHandler: (
@@ -32,6 +31,7 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ) => Promise<void> = this.clientApp.getRequestHandler();
+
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
     'script-src': ['self', 'unsafe-inline'],
@@ -42,6 +42,7 @@ export default class Server {
       'https://fonts.gstatic.com'
     ]
   };
+
   private readonly sessionConfig = {
     key: '__app',
     maxAge: 100000,
@@ -83,27 +84,35 @@ export default class Server {
     console.timeEnd('db-startup-time');
   }
 
+  private has_session(ctx: Koa.ParameterizedContext) {
+    return Boolean(ctx.cookies.get('__app'));
+  }
+
+  private is_authenticated(ctx: Koa.ParameterizedContext) {
+    return Boolean(ctx.cookies.get('_app_auth'));
+  }
+
+  private is_static_file(path: string) {
+    return ['_next', '.ico', '.json'].some(urlSegment =>
+      path.includes(urlSegment)
+    );
+  }
+
+  private does_not_require_login(ctx: Koa.ParameterizedContext) {
+    const { path } = ctx;
+    return (
+      path.startsWith('/login') ||
+      path.startsWith('/auth') ||
+      this.is_static_file(path) ||
+      this.has_session(ctx)
+    );
+  }
+
   private attach_api_routes() {
     const defaultApiHeaders = {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'deny',
       'X-XSS-Protection': '1; mode=block'
-    };
-
-    const is_logged_in = ({ cookies }: Koa.ParameterizedContext) =>
-      this.cookieJar.some(cookieName => cookies.get(cookieName));
-
-    const is_static_file = (path: string) =>
-      ['_next', '.ico', '.json'].some(urlSegment => path.includes(urlSegment));
-
-    const does_not_require_login = (ctx: Koa.ParameterizedContext) => {
-      const { path } = ctx;
-      return (
-        path.startsWith('/login') ||
-        path.startsWith('/auth') ||
-        is_static_file(path) ||
-        is_logged_in(ctx)
-      );
     };
 
     this.app.keys = ['_app'];
@@ -120,7 +129,7 @@ export default class Server {
       let viewsMsg = '';
 
       try {
-        if (!is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
+        if (!this.is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
           ctx.session.views = ctx.session.views + 1 || 1;
           viewsMsg = `[Views: ${ctx.session.views}]`;
           await ctx.session.manuallyCommit();
@@ -128,7 +137,7 @@ export default class Server {
 
         ctx.state.render = this.clientApp.render.bind(this.clientApp);
 
-        if (does_not_require_login(ctx)) {
+        if (this.does_not_require_login(ctx)) {
           await next();
         } else {
           ctx.redirect('/login'); // handled by Next
@@ -146,18 +155,16 @@ export default class Server {
 
         if (ctx.status >= 400) chalkLog = chalk.red(chalkMsg);
         else if (ctx.status >= 300) chalkLog = chalk.inverse(chalkMsg);
-        else if (is_static_file(ctx.path)) chalkLog = chalk.cyan(chalkMsg);
+        else if (this.is_static_file(ctx.path)) chalkLog = chalk.cyan(chalkMsg);
         else chalkLog = chalk.green(chalkMsg);
 
         log(chalkLog);
       }
     });
 
-    routers.forEach(({ pathsMap, middleware, sessionName }) => {
+    routers.forEach(({ pathsMap, middleware }) => {
       for (const [path, methods] of pathsMap)
         this.apiPathsMethodsMap.set(path, methods);
-
-      if (sessionName) this.cookieJar.push(sessionName);
 
       this.app.use(middleware.routes()).use(middleware.allowedMethods());
     });

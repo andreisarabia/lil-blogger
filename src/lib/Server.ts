@@ -31,7 +31,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
-  ) => Promise<void>;
+  ) => Promise<void> = this.clientApp.getRequestHandler();
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
     'script-src': ['self', 'unsafe-inline'],
@@ -51,9 +51,7 @@ export default class Server {
     autoCommit: false
   };
 
-  private constructor() {
-    this.clientAppHandler = this.clientApp.getRequestHandler();
-  }
+  private constructor() {}
 
   private get cspHeader(): string {
     let header = '';
@@ -91,10 +89,22 @@ export default class Server {
       'X-Frame-Options': 'deny',
       'X-XSS-Protection': '1; mode=block'
     };
-    const is_logged_in = (ctx: Koa.ParameterizedContext) =>
-      this.cookieJar.some(cookieName => ctx.cookies.get(cookieName));
+
+    const is_logged_in = ({ cookies }: Koa.ParameterizedContext) =>
+      this.cookieJar.some(cookieName => cookies.get(cookieName));
+
     const is_static_file = (path: string) =>
       ['_next', '.ico', '.json'].some(urlSegment => path.includes(urlSegment));
+
+    const does_not_require_login = (ctx: Koa.ParameterizedContext) => {
+      const { path } = ctx;
+      return (
+        path.startsWith('/login') ||
+        path.startsWith('/auth') ||
+        is_static_file(path) ||
+        is_logged_in(ctx)
+      );
+    };
 
     this.app.keys = ['_app'];
 
@@ -103,32 +113,26 @@ export default class Server {
     this.app.use(koaBody({ json: true }));
 
     this.app.use(async (ctx, next) => {
-      if (
-        ctx.path.startsWith('/login') ||
-        ctx.path.startsWith('/_next') ||
-        is_logged_in(ctx)
-      ) {
-        await next();
-      } else {
-        ctx.redirect('/login'); // handled by Next
-      }
-    });
-
-    this.app.use(async (ctx, next) => {
       const start = process.hrtime();
 
       ctx.set(defaultApiHeaders);
 
       let viewsMsg = '';
 
-      if (!is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
-        ctx.session.views = ctx.session.views + 1 || 1;
-        viewsMsg = `[Views: ${ctx.session.views}]`;
-        await ctx.session.manuallyCommit();
-      }
-
       try {
-        await next();
+        if (!is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
+          ctx.session.views = ctx.session.views + 1 || 1;
+          viewsMsg = `[Views: ${ctx.session.views}]`;
+          await ctx.session.manuallyCommit();
+        }
+
+        ctx.state.render = this.clientApp.render.bind(this.clientApp);
+
+        if (does_not_require_login(ctx)) {
+          await next();
+        } else {
+          ctx.redirect('/login'); // handled by Next
+        }
       } finally {
         const [seconds, nanoSeconds] = process.hrtime(start);
         const xResponseTime = `${seconds * 1000 + nanoSeconds / 1000000}ms`;
@@ -142,8 +146,8 @@ export default class Server {
 
         if (ctx.status >= 400) chalkLog = chalk.red(chalkMsg);
         else if (ctx.status >= 300) chalkLog = chalk.inverse(chalkMsg);
-        else if (is_static_file(ctx.path)) chalkLog = chalk.blue(chalkMsg);
-        else chalkLog = chalk.cyan(chalkMsg);
+        else if (is_static_file(ctx.path)) chalkLog = chalk.cyan(chalkMsg);
+        else chalkLog = chalk.green(chalkMsg);
 
         log(chalkLog);
       }

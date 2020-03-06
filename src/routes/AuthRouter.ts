@@ -22,8 +22,8 @@ export default class AuthRouter extends Router {
     console.log(username);
     console.log(password);
 
-    ctx.cookies.set(this.sessionName, uuidv4());
+    ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
 
-    ctx.redirect('/');
+    await ctx.state.render(ctx.req, ctx.res, '/');
   }
 }

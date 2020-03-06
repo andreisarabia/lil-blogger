@@ -5,7 +5,6 @@
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
-    "watch": true,
     "rootDir": "./src",
     "outDir": "./build",
     "strictNullChecks": false,

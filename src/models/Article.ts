@@ -123,9 +123,7 @@ export default class Article extends Model {
   private static extract_canonical_url(html: string): string {
     const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
 
-    for (const tag of linkTags) {
-      if (tag.rel === 'canonical') return tag.href;
-    }
+    for (const tag of linkTags) if (tag.rel === 'canonical') return tag.href;
 
     return null;
   }

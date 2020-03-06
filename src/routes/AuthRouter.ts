@@ -8,7 +8,7 @@ type LoginParameters = {
 };
 
 export default class AuthRouter extends Router {
-  public readonly sessionCookie = '_app_auth';
+  public readonly sessionName = '_app_auth';
 
   constructor() {
     super('/auth');
@@ -22,7 +22,7 @@ export default class AuthRouter extends Router {
     console.log(username);
     console.log(password);
 
-    ctx.cookies.set(this.sessionCookie, uuidv4());
+    ctx.cookies.set(this.sessionName, uuidv4());
 
     ctx.redirect('/');
   }

@@ -1,7 +1,7 @@
 import KoaRouter from 'koa-router';
 
 export default class Router {
-  public readonly sessionCookie?: string;
+  public readonly sessionName?: string;
   protected instance: KoaRouter;
   protected pathsMap = new Map<string, string[]>();
 
@@ -13,7 +13,7 @@ export default class Router {
     return this.instance;
   }
 
-  public get allPaths(): Map<string, string[]> {
+  public get pathsMap(): Map<string, string[]> {
     this.pathsMap.clear();
     this.instance.stack.forEach(layer => {
       this.pathsMap.set(layer.path, layer.methods);

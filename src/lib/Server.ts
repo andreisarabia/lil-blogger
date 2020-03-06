@@ -121,7 +121,7 @@ export default class Server {
 
       let viewsMsg = '';
 
-      if (!is_static_file(ctx.path) && ctx.session) {
+      if (!is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
         ctx.session.views = ctx.session.views + 1 || 1;
         viewsMsg = `[Views: ${ctx.session.views}]`;
         await ctx.session.manuallyCommit();
@@ -133,34 +133,29 @@ export default class Server {
         const [seconds, nanoSeconds] = process.hrtime(start);
         const xResponseTime = `${seconds * 1000 + nanoSeconds / 1000000}ms`;
 
-        if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
+        if (config.IS_DEV && !ctx.headerSent)
+          ctx.set('X-Response-Time', xResponseTime);
 
         const chalkMsg = `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
 
         let chalkLog: string;
 
-        if (ctx.status >= 400) {
-          chalkLog = chalk.red(chalkMsg);
-        } else if (ctx.status >= 300) {
-          chalkLog = chalk.inverse(chalkMsg);
-        } else if (is_static_file(ctx.path)) {
-          chalkLog = chalk.blue(chalkMsg);
-        } else {
-          chalkLog = chalk.cyan(chalkMsg);
-        }
+        if (ctx.status >= 400) chalkLog = chalk.red(chalkMsg);
+        else if (ctx.status >= 300) chalkLog = chalk.inverse(chalkMsg);
+        else if (is_static_file(ctx.path)) chalkLog = chalk.blue(chalkMsg);
+        else chalkLog = chalk.cyan(chalkMsg);
 
         log(chalkLog);
       }
     });
 
-    routers.forEach(router => {
-      for (const [path, methods] of router.allPaths) {
+    routers.forEach(({ pathsMap, middleware, sessionName }) => {
+      for (const [path, methods] of pathsMap)
         this.apiPathsMethodsMap.set(path, methods);
-      }
 
-      if (router.sessionCookie) this.cookieJar.push(router.sessionCookie);
-      this.app.use(router.middleware.routes());
-      this.app.use(router.middleware.allowedMethods());
+      if (sessionName) this.cookieJar.push(sessionName);
+
+      this.app.use(middleware.routes()).use(middleware.allowedMethods());
     });
 
     log(this.csp);

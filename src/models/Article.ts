@@ -58,6 +58,13 @@ export default class Article extends Model {
     return publicProps;
   }
 
+  public static async create(url: string): Promise<Article> {
+    const cleanData = await Article.extract_url_data(url);
+    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
+
+    return new Article({ ...cleanData, uniqueId });
+  }
+
   public static async find(url: string): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,
@@ -66,13 +73,6 @@ export default class Article extends Model {
     })) as ArticleProps;
 
     return articleData ? new Article(articleData) : null;
-  }
-
-  public static async create(url: string): Promise<Article> {
-    const cleanData = await Article.extract_url_data(url);
-    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
-
-    return new Article({ ...cleanData, uniqueId });
   }
 
   public static async find_all(): Promise<Article[]> {

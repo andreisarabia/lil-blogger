@@ -1,27 +1,11 @@
 import React from 'react';
-import styled from 'styled-components';
 
 import { ArticleProps } from '../typings';
+import { ArticleViewSection } from '../styles';
 
 interface ArticleViewProps {
   focusedArticle: ArticleProps;
 }
-
-const ArticleViewSection = styled.section`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: auto;
-
-  .article-view {
-    padding: 1rem;
-  }
-
-  .moreInfo {
-    display: flex;
-    justify-content: space-around;
-  }
-`;
 
 export default class ArticleView extends React.Component<ArticleViewProps> {
   constructor(props) {

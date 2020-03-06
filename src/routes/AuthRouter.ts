@@ -1,7 +1,9 @@
 import Koa from 'koa';
-import Router from './Router';
 import { v4 as uuidv4 } from 'uuid';
+
+import Router from './Router';
 import User from '../models/User';
+import config from '../config';
 
 type AccountLoginParameters = {
   email: string;
@@ -20,27 +22,52 @@ export default class AuthRouter extends Router {
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { email, password } = ctx.request.body as AccountLoginParameters;
+    const { email = '', password } = ctx.request.body as AccountLoginParameters;
 
-    ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+    let error = null;
+    let msg = '';
 
-    ctx.body = { msg: 'ok' };
+    if (await User.validate_login({ email, password })) {
+      ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+      msg = 'ok';
+    } else {
+      error =
+        'Could not validate the email and password combination. Please try again.';
+    }
+
+    ctx.body = { error, msg };
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
     const { email, password } = ctx.request.body as AccountLoginParameters;
+    const userData = { email, password };
 
-    const registrationErrors = await User.verify_user_params({
-      email,
-      password
-    });
+    let errors: string[] = null;
+    let msg = '';
 
-    if (registrationErrors.length > 0) {
-      ctx.body = { errors: registrationErrors };
-    } else {
-      ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+    try {
+      errors = await User.verify_user_data(userData);
 
-      ctx.body = { msg: 'ok' };
+      if (!errors) {
+        const user = await User.create(userData);
+        await user.save();
+
+        ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+
+        msg = 'ok';
+      }
+    } catch (error) {
+      errors = [
+        'Something went wrong with creating your account. Please try again.'
+      ];
+
+      if (config.IS_DEV && error instanceof Error) {
+        if (error.stack) console.log(error.stack);
+
+        errors.push(error.message);
+      }
     }
+
+    ctx.body = { errors, msg };
   }
 }

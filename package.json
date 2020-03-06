@@ -17,6 +17,7 @@
   "dependencies": {
     "@postlight/mercury-parser": "^2.2.0",
     "axios": "^0.19.2",
+    "bcrypt": "^4.0.1",
     "chalk": "^3.0.0",
     "dompurify": "^2.0.8",
     "jsdom": "^16.2.0",
@@ -33,6 +34,7 @@
     "uuid": "^7.0.2"
   },
   "devDependencies": {
+    "@types/bcrypt": "^3.0.0",
     "@types/dompurify": "^2.0.1",
     "@types/jsdom": "^16.1.0",
     "@types/koa": "^2.11.2",

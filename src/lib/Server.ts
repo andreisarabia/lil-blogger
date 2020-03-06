@@ -22,13 +22,16 @@ let singleton: Server = null;
 
 export default class Server {
   private app = new Koa();
+  private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
+  private apiPathsMethodsMap = new Map<string, string[]>();
+  private cookieJar: string[] = ['__app'];
   private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
+
   private clientAppHandler: (
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ) => Promise<void>;
-  private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
     'script-src': ['self', 'unsafe-inline'],
@@ -47,7 +50,6 @@ export default class Server {
     httpOnly: true,
     autoCommit: false
   };
-  private cookieJar: string[] = ['__app'];
 
   private constructor() {
     this.clientAppHandler = this.clientApp.getRequestHandler();
@@ -89,9 +91,10 @@ export default class Server {
       'X-Frame-Options': 'deny',
       'X-XSS-Protection': '1; mode=block'
     };
-
     const is_logged_in = (ctx: Koa.ParameterizedContext) =>
-      this.cookieJar.some(cookie => Boolean(ctx.cookies.get(cookie)));
+      this.cookieJar.some(cookieName => ctx.cookies.get(cookieName));
+    const is_static_file = (path: string) =>
+      ['_next', '.ico', '.json'].some(urlSegment => path.includes(urlSegment));
 
     this.app.keys = ['_app'];
 
@@ -100,14 +103,14 @@ export default class Server {
     this.app.use(koaBody({ json: true }));
 
     this.app.use(async (ctx, next) => {
-      if (ctx.path.startsWith('/login') || is_logged_in(ctx)) {
+      if (
+        ctx.path.startsWith('/login') ||
+        ctx.path.startsWith('/_next') ||
+        is_logged_in(ctx)
+      ) {
         await next();
       } else {
-        if (ctx.path.startsWith('/_next')) {
-          await next();
-        } else {
-          ctx.redirect('/login');
-        }
+        ctx.redirect('/login'); // handled by Next
       }
     });
 
@@ -116,39 +119,52 @@ export default class Server {
 
       ctx.set(defaultApiHeaders);
 
+      let viewsMsg = '';
+
+      if (!is_static_file(ctx.path) && ctx.session) {
+        ctx.session.views = ctx.session.views + 1 || 1;
+        viewsMsg = `[Views: ${ctx.session.views}]`;
+        await ctx.session.manuallyCommit();
+      }
+
       try {
         await next();
-      } catch (error) {
-        throw error;
       } finally {
         const [seconds, nanoSeconds] = process.hrtime(start);
         const xResponseTime = `${seconds * 1000 + nanoSeconds / 1000000}ms`;
-        const logMsg = `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime}`;
 
         if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
 
-        if (ctx.session) {
-          ctx.session.views = ctx.session.views + 1 || 1;
-          log(`Views: ${ctx.session.views}`);
-          await ctx.session.manuallyCommit();
-        }
+        const chalkMsg = `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
+
+        let chalkLog: string;
 
         if (ctx.status >= 400) {
-          log(chalk.bgRed(logMsg));
+          chalkLog = chalk.red(chalkMsg);
         } else if (ctx.status >= 300) {
-          log(chalk.inverse(logMsg));
+          chalkLog = chalk.inverse(chalkMsg);
+        } else if (is_static_file(ctx.path)) {
+          chalkLog = chalk.blue(chalkMsg);
         } else {
-          log(chalk.cyan(logMsg));
+          chalkLog = chalk.cyan(chalkMsg);
         }
+
+        log(chalkLog);
       }
     });
 
     routers.forEach(router => {
-      log(router.allPaths);
+      for (const [path, methods] of router.allPaths) {
+        this.apiPathsMethodsMap.set(path, methods);
+      }
+
       if (router.sessionCookie) this.cookieJar.push(router.sessionCookie);
       this.app.use(router.middleware.routes());
       this.app.use(router.middleware.allowedMethods());
     });
+
+    log(this.csp);
+    log(this.apiPathsMethodsMap);
   }
 
   private attach_client_routes() {
@@ -160,7 +176,7 @@ export default class Server {
       ctx.set(defaultClientHeaders);
       await this.clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
-      if (ctx.session) ctx.session = null; // prevent err w/ Next so as to not send already sent headers
+      ctx.session = null; // prevent err w/ Next and its handling of headers
     });
   }
 

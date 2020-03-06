@@ -13,12 +13,12 @@ export default class Router {
     return this.instance;
   }
 
-  public get allPaths(): [string, string[]][] {
+  public get allPaths(): Map<string, string[]> {
     this.pathsMap.clear();
     this.instance.stack.forEach(layer => {
       this.pathsMap.set(layer.path, layer.methods);
     });
 
-    return [...this.pathsMap];
+    return new Map(this.pathsMap);
   }
 }

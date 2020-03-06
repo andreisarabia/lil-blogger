@@ -1,9 +1,10 @@
 import React from 'react';
 import styled from 'styled-components';
-import { ParseResult } from '@postlight/mercury-parser';
+
+import { ArticleProps } from '../typings';
 
 interface ArticlesListViewProps {
-  list: ParseResult[];
+  list: ArticleProps[];
   onArticleAdd: (link: string) => void;
   onArticleFocus: (link: string) => void;
 }
@@ -16,6 +17,7 @@ interface ArticlesListViewState {
 const ArticleListSection = styled.section`
   flex: 0.5;
   font-size: 1.05rem;
+  overflow: auto;
 
   h2 {
     align-self: flex-start;
@@ -45,13 +47,13 @@ export default class ArticlesListView extends React.Component<
   ArticlesListViewProps,
   ArticlesListViewState
 > {
+  state = {
+    showAddArticleInput: false,
+    articleLinkToAdd: ''
+  };
+
   constructor(props) {
     super(props);
-
-    this.state = {
-      showAddArticleInput: false,
-      articleLinkToAdd: ''
-    };
   }
 
   toggle_article_input = () => {
@@ -93,8 +95,9 @@ export default class ArticlesListView extends React.Component<
           <input
             type='text'
             placeholder='Add article link'
-            value={this.state.articleLinkToAdd}
             style={articleAddStyle}
+            defaultValue={''}
+            onChange={e => this.setState({ articleLinkToAdd: e.target.value })}
           />
           <input
             type='submit'

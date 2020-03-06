@@ -2,7 +2,7 @@ import { FilterQuery, ObjectID } from 'mongodb';
 
 import Database, { InsertResult } from '../lib/Database';
 
-type SearchCriteria = {
+type SearchOptions = {
   collection: string;
   criteria: object;
   limit?: number;
@@ -30,15 +30,19 @@ export default class Model {
     return this;
   }
 
-  protected static async search({
+  protected static drop_all(collection: string): Promise<boolean> {
+    return Database.instance(collection).drop_collection();
+  }
+
+  protected static search({
     collection,
     criteria,
     limit
-  }: SearchCriteria): Promise<object | object[]> {
+  }: SearchOptions): Promise<object | object[]> {
     return Database.instance(collection).find(criteria, { limit });
   }
 
-  protected static async remove(
+  protected static remove(
     collection: string,
     criteria: FilterQuery<object>
   ): Promise<boolean> {

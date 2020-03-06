@@ -1,11 +1,10 @@
 {
   "compilerOptions": {
-    "target": "es2018",
+    "target": "es2019",
     "module": "commonjs",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
-    "watch": true,
     "rootDir": "./src",
     "outDir": "./build",
     "strictNullChecks": false,

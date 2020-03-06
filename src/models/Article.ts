@@ -2,6 +2,7 @@ import striptags from 'striptags';
 import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 import Model, { BaseProps } from './Model';
 import { sanitize, remove_extra_whitespace } from '../util';
@@ -10,36 +11,13 @@ import { ALLOWED_HTML_TAGS } from './constants';
 export interface ArticleProps extends BaseProps, ParseResult {
   canonicalUrl: string;
   createdOn: string; // UTC
+  uniqueId: string;
+  slug: string;
 }
 
 type ArticlePropsKey = keyof ArticleProps;
 
-const extract_canonical_url = (html: string): string => {
-  const { window } = new JSDOM(html);
-  const linkTags = window.document.querySelectorAll('link');
-
-  for (const tag of linkTags) {
-    if (tag.rel === 'canonical') return tag.href;
-  }
-
-  return null;
-};
-
-const parse_url_for_article_data = async (
-  url: string
-): Promise<ArticleProps> => {
-  const { data: dirtyHtml }: { data: string } = await axios.get(url);
-  const sanitizedHtml = sanitize(dirtyHtml, { ADD_TAGS: ['link'] });
-  const canonicalUrl = extract_canonical_url(sanitizedHtml) || url;
-  const html = remove_extra_whitespace(sanitizedHtml);
-  const parsedData: ParseResult = await Mercury.parse(url, { html });
-
-  parsedData.content = striptags(parsedData.content, ALLOWED_HTML_TAGS);
-
-  const createdOn = new Date().toISOString();
-
-  return { ...parsedData, createdOn, canonicalUrl } as ArticleProps;
-};
+type ArticleUrlExtractionData = Omit<ArticleProps, 'uniqueId'>;
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
@@ -48,28 +26,26 @@ export default class Article extends Model {
     super(props, Article.collectionName);
   }
 
-  private update_props<Key extends keyof ArticleProps>(
+  private update_props<Key extends ArticlePropsKey>(
     key: Key,
     value: ArticleProps[Key]
   ) {
     this.props[key] = value;
   }
 
-  public async update(propsToUpdate: Partial<ArticleProps>) {
+  public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
-      const updatedValue = propsToUpdate[key];
-
-      if (updatedValue === undefined) continue;
+      if (!(key in this.props)) continue;
+      if (propsToUpdate[key] === undefined) continue;
 
       if (key === 'canonicalUrl') {
-        const updatedProps = await parse_url_for_article_data(
-          updatedValue as string
-        );
+        // we want to get the original location's refreshed content
+        const newProps = await Article.extract_url_data(propsToUpdate[key]);
 
-        this.props = updatedProps;
+        this.props = { ...this.props, ...newProps };
         break;
       } else {
-        this.update_props(key, updatedValue);
+        this.update_props(key, propsToUpdate[key]);
       }
     }
 
@@ -77,11 +53,9 @@ export default class Article extends Model {
   }
 
   public get info(): Omit<ArticleProps, '_id'> {
-    const dereferencedProps = { ...this.props };
+    const { _id, ...publicProps } = this.props;
 
-    Reflect.deleteProperty(dereferencedProps, '_id');
-
-    return dereferencedProps;
+    return publicProps;
   }
 
   public static async find(url: string): Promise<Article> {
@@ -95,9 +69,10 @@ export default class Article extends Model {
   }
 
   public static async create(url: string): Promise<Article> {
-    const cleanData = await parse_url_for_article_data(url);
+    const cleanData = await Article.extract_url_data(url);
+    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
 
-    return new Article(cleanData);
+    return new Article({ ...cleanData, uniqueId });
   }
 
   public static async find_all(): Promise<Article[]> {
@@ -106,9 +81,9 @@ export default class Article extends Model {
       criteria: {},
       limit: 0
     })) as ArticleProps[];
-    const articles: Article[] = data.map(
-      articleData => new Article(articleData)
-    );
+    const articles = data
+      ? data.map(articleData => new Article(articleData))
+      : null;
 
     return articles;
   }
@@ -119,5 +94,44 @@ export default class Article extends Model {
     });
 
     return wasRemoved;
+  }
+
+  public static delete_all(): Promise<boolean> {
+    return Model.drop_all(Article.collectionName);
+  }
+
+  private static async extract_url_data(
+    url: string
+  ): Promise<ArticleUrlExtractionData> {
+    const { data: dirtyHtml }: { data: string } = await axios.get(url);
+    const html = sanitize(remove_extra_whitespace(dirtyHtml), {
+      ADD_TAGS: ['link']
+    });
+    const { content, ...restOfResult }: ParseResult = await Mercury.parse(url, {
+      html: Buffer.from(html, 'utf-8')
+    });
+
+    return {
+      ...restOfResult,
+      content: striptags(content, ALLOWED_HTML_TAGS),
+      createdOn: new Date().toISOString(),
+      canonicalUrl: Article.extract_canonical_url(html) || url,
+      slug: Article.extract_slug(url)
+    } as ArticleUrlExtractionData;
+  }
+
+  private static extract_canonical_url(html: string): string {
+    const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
+
+    for (const tag of linkTags) if (tag.rel === 'canonical') return tag.href;
+
+    return null;
+  }
+
+  private static extract_slug(url: string): string {
+    const { pathname } = new URL(url);
+    const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
+
+    return lastPartOfUrl;
   }
 }

@@ -2,17 +2,20 @@ import React from 'react';
 import Router from 'next/router';
 import axios from 'axios';
 
+const MIN_PASSWORD_LENGTH = 15;
+const MAX_PASSWORD_LENGTH = 45;
+
 export default class LoginPage extends React.Component {
   state = {
-    loginUsername: '',
+    loginEmail: '',
     loginPassword: '',
-    registerUsername: '',
+    registerEmail: '',
     registerPassword: ''
   };
 
   handle_login = async () => {
     const { data } = await axios.post('/api/auth/login', {
-      username: this.state.loginUsername,
+      email: this.state.loginEmail,
       password: this.state.loginPassword
     });
 
@@ -23,7 +26,7 @@ export default class LoginPage extends React.Component {
 
   handle_create_account = async () => {
     const { data } = await axios.post('/api/auth/register', {
-      username: this.state.registerUsername,
+      email: this.state.registerEmail,
       password: this.state.registerPassword
     });
 
@@ -37,14 +40,18 @@ export default class LoginPage extends React.Component {
       <div>
         <h2>Login</h2>
         <input
-          type='text'
-          name='loginUsername'
-          onChange={e => this.setState({ loginUsername: e.target.value })}
+          type='email'
+          name='loginEmail'
+          onChange={e => this.setState({ loginEmail: e.target.value.trim() })}
         />
         <input
           type='password'
           name='loginPassword'
-          onChange={e => this.setState({ loginPassword: e.target.value })}
+          minLength={MIN_PASSWORD_LENGTH}
+          maxLength={MAX_PASSWORD_LENGTH}
+          onChange={e =>
+            this.setState({ loginPassword: e.target.value.trim() })
+          }
         />
         <button type='submit' onClick={this.handle_login}>
           Submit
@@ -53,14 +60,20 @@ export default class LoginPage extends React.Component {
         <h2>Create an account</h2>
 
         <input
-          type='text'
-          name='registerUsername'
-          onChange={e => this.setState({ username: e.target.value })}
+          type='email'
+          name='registerEmail'
+          onChange={e =>
+            this.setState({ registerEmail: e.target.value.trim() })
+          }
         />
         <input
           type='password'
           name='registerPassword'
-          onChange={e => this.setState({ password: e.target.value })}
+          minLength={MIN_PASSWORD_LENGTH}
+          maxLength={MAX_PASSWORD_LENGTH}
+          onChange={e =>
+            this.setState({ registerPassword: e.target.value.trim() })
+          }
         />
         <button type='submit' onClick={this.handle_create_account}>
           Submit

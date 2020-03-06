@@ -22,7 +22,7 @@ type ArticleUrlExtractionData = Omit<ArticleProps, 'uniqueId'>;
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
 
-  constructor(protected props: ArticleProps) {
+  protected constructor(protected props: ArticleProps) {
     super(props, Article.collectionName);
   }
 

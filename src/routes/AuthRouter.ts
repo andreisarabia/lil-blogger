@@ -1,9 +1,10 @@
 import Koa from 'koa';
 import Router from './Router';
 import { v4 as uuidv4 } from 'uuid';
+import User from '../models/User';
 
 type AccountLoginParameters = {
-  username: string;
+  email: string;
   password: string;
 };
 
@@ -19,7 +20,7 @@ export default class AuthRouter extends Router {
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { username, password } = ctx.request.body as AccountLoginParameters;
+    const { email, password } = ctx.request.body as AccountLoginParameters;
 
     ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
 
@@ -27,10 +28,19 @@ export default class AuthRouter extends Router {
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
-    const { username, password } = ctx.request.body as AccountLoginParameters;
+    const { email, password } = ctx.request.body as AccountLoginParameters;
 
-    ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+    const registrationErrors = await User.verify_user_params({
+      email,
+      password
+    });
 
-    ctx.body = { msg: 'ok' };
+    if (registrationErrors.length > 0) {
+      ctx.body = { errors: registrationErrors };
+    } else {
+      ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+
+      ctx.body = { msg: 'ok' };
+    }
   }
 }

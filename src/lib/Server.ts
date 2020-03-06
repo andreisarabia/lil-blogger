@@ -98,6 +98,12 @@ export default class Server {
     );
   }
 
+  /**
+   * We pass down the request through the middleware chain only if:
+   * user is trying to access `/login` (Next route) or `/auth` (API route)
+   * user is requesting static resources (Next)
+   * user has a session beforehand AND has authenticated their info
+   */
   private does_not_require_login(ctx: Koa.ParameterizedContext) {
     const { path } = ctx;
     return (
@@ -135,8 +141,6 @@ export default class Server {
           viewsMsg = `[Views: ${ctx.session.views}]`;
           await ctx.session.manuallyCommit();
         }
-
-        ctx.state.render = this.clientApp.render.bind(this.clientApp);
 
         if (this.does_not_require_login(ctx)) {
           await next();

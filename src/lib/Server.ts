@@ -104,7 +104,8 @@ export default class Server {
       path.startsWith('/login') ||
       path.startsWith('/auth') ||
       this.is_static_file(path) ||
-      this.has_session(ctx)
+      this.has_session(ctx) ||
+      this.is_authenticated(ctx)
     );
   }
 

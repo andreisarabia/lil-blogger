@@ -24,13 +24,14 @@ export default class AuthRouter extends Router {
   private async login(ctx: Koa.ParameterizedContext) {
     const { email = '', password } = ctx.request.body as AccountLoginParameters;
 
-    let error = null;
+    let error: string = null;
     let msg = '';
 
     if (await User.validate_login({ email, password })) {
       ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
       msg = 'ok';
     } else {
+      ctx.status = 400;
       error =
         'Could not validate the email and password combination. Please try again.';
     }
@@ -48,7 +49,9 @@ export default class AuthRouter extends Router {
     try {
       errors = await User.verify_user_data(userData);
 
-      if (!errors) {
+      if (errors) {
+        ctx.status = 400;
+      } else {
         const user = await User.create(userData);
         await user.save();
 
@@ -57,6 +60,7 @@ export default class AuthRouter extends Router {
         msg = 'ok';
       }
     } catch (error) {
+      ctx.status = 400;
       errors = [
         'Something went wrong with creating your account. Please try again.'
       ];

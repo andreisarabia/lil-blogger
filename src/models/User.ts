@@ -15,7 +15,7 @@ const MAX_PASSWORD_LENGTH = 45;
 const SALT_ROUNDS = 10;
 
 export default class User extends Model {
-  private static readonly collectionName = 'articles';
+  private static readonly collectionName = 'users';
 
   protected constructor(protected props: UserProps) {
     super(props, User.collectionName);
@@ -62,15 +62,15 @@ export default class User extends Model {
   }: Omit<UserProps, 'uniqueId'>): Promise<string[]> {
     const errors: string[] = [];
 
-    if (!is_email(email) || (await User.exists(email))) {
+    if (!is_email(email) || (await User.exists(email)))
       errors.push('Email is not valid.');
-    }
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (password.length < MIN_PASSWORD_LENGTH)
       errors.push('Password is too short.');
-    } else if (password.length > MAX_PASSWORD_LENGTH) {
+    else if (password.length > MAX_PASSWORD_LENGTH)
       errors.push('Password is too long.');
-    } else if (!is_safe_password(password)) {
+
+    if (!is_safe_password(password))
       errors.push(
         `Your password contains invalid characters. Please use:
         At least one lowercase letter
@@ -78,7 +78,6 @@ export default class User extends Model {
         At least one number
         At least one special character (Allowed: ! @ # $ % ^ & *)`
       );
-    }
 
     return errors.length > 0 ? errors : null;
   }

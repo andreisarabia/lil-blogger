@@ -49,7 +49,13 @@ export default class ArticlesListView extends React.Component<
     return (
       <ArticleListSection>
         <div className='add-article-header'>
-          <h2>Your Articles</h2>
+          <h2>
+            {Array.isArray(this.props.list)
+              ? this.props.list.length > 0
+                ? 'Your Articles'
+                : 'Please add an to save for later'
+              : 'Fetching your articles...'}
+          </h2>
           <button onClick={this.toggle_article_input}>+</button>
         </div>
 
@@ -79,11 +85,12 @@ export default class ArticlesListView extends React.Component<
         </form>
 
         <div className='article-list'>
-          {this.props.list.map(({ title, url }) => (
-            <p key={url} onClick={() => this.props.onArticleFocus(url)}>
-              {title}
-            </p>
-          ))}
+          {this.props.list &&
+            this.props.list.map(({ title, url, uniqueId }) => (
+              <p key={uniqueId} onClick={() => this.props.onArticleFocus(url)}>
+                {title}
+              </p>
+            ))}
         </div>
       </ArticleListSection>
     );

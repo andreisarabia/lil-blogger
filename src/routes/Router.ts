@@ -12,13 +12,14 @@ export default class Router {
     httpOnly: true,
     autoCommit: true
   };
-  private readonly defaultApiHeader = { 'Content-Type': 'application/json' };
 
   protected constructor(prefix: string) {
     this.instance = new KoaRouter({ prefix: `/api${prefix}` });
 
+    const defaultApiHeader = { 'Content-Type': 'application/json' };
+
     this.instance.use(async (ctx, next) => {
-      ctx.set(this.defaultApiHeader);
+      ctx.set(defaultApiHeader);
       await next();
     });
   }
@@ -28,12 +29,12 @@ export default class Router {
   }
 
   public get pathsMap(): Map<string, string[]> {
-    const DYNAMIC_URL_SUFFIX = '.*'; // added by KoaRouter, no need to log it for path maps
+    const DYNAMIC_URL_SUFFIX = '(.*)'; // regex identifier added by KoaRouter, no need to log it
 
     this.allPathsWithMethods.clear();
 
     this.instance.stack.forEach(({ path, methods }) => {
-      if (!path.includes(DYNAMIC_URL_SUFFIX))
+      if (!path.endsWith(DYNAMIC_URL_SUFFIX))
         this.allPathsWithMethods.set(path, methods);
     });
 

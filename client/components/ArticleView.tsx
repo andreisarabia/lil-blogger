@@ -16,7 +16,7 @@ export default class ArticleView extends React.Component<ArticleViewProps> {
     const { focusedArticle: article } = this.props;
     return (
       <ArticleViewSection>
-        <h2>{article ? article.title : 'Fetching articles...'}</h2>
+        <h2>{article ? article.title : ''}</h2>
         <div className='moreInfo'>
           {article && article.date_published && (
             <h4>

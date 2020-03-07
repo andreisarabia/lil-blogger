@@ -1,5 +1,6 @@
 import React from 'react';
 import axios from 'axios';
+import Head from 'next/head'
 
 import ArticleView from '../components/ArticleView';
 import ArticlesListView from '../components/ArticlesListView';
@@ -17,7 +18,7 @@ export default class HomePage extends React.Component<
   HomePageArticleState
 > {
   state = {
-    articlesList: [],
+    articlesList: null,
     viewingArticle: null
   };
 
@@ -60,6 +61,9 @@ export default class HomePage extends React.Component<
   render = () => {
     return (
       <HomePageWrapper>
+        <Head>
+          <title>Home</title>
+        </Head>
         <ArticlesListView
           list={this.state.articlesList}
           onArticleAdd={this.handle_add_article}

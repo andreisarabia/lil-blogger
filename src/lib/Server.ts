@@ -19,7 +19,17 @@ type ContentSecurityPolicy = {
 
 const log = console.log;
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
-const routersToAttach = [new AuthRouter(), new ArticleRouter()];
+const FILE_TYPES = ['_next', '.ico', '.json'];
+
+// helpers
+const has_session = (ctx: Koa.ParameterizedContext) =>
+  Boolean(ctx.cookies.get('__app'));
+
+const is_authenticated = (ctx: Koa.ParameterizedContext) =>
+  Boolean(ctx.cookies.get(Router.authCookieName));
+
+const is_static_file = (path: string) =>
+  FILE_TYPES.some(type => path.includes(type));
 
 let singleton: Server = null;
 
@@ -90,16 +100,6 @@ export default class Server {
     this.stats.dbStartup = Date.now() - start;
   }
 
-  private has_session(ctx: Koa.ParameterizedContext) {
-    return Boolean(ctx.cookies.get('__app'));
-  }
-
-  private is_static_file(path: string) {
-    return ['_next', '.ico', '.json'].some(urlSegment =>
-      path.includes(urlSegment)
-    );
-  }
-
   private attach_api_routes() {
     const defaultApiHeaders = {
       'X-Content-Type-Options': 'nosniff',
@@ -122,7 +122,7 @@ export default class Server {
         let viewsMsg = '';
 
         try {
-          if (this.is_static_file(path)) return await next(); // handled by Next
+          if (is_static_file(path)) return await next(); // handled by Next
 
           if (path.startsWith('/login') || path.startsWith('/api/auth')) {
             if (path.startsWith('/login')) {
@@ -132,27 +132,22 @@ export default class Server {
 
             await ctx.session.manuallyCommit();
             await next();
-          } else if (this.has_session(ctx)) {
-            // the user is authenticated at this point
-            const user = await User.find({
-              cookie: ctx.cookies.get(Router.authCookieName)
-            });
-
-            if (path.startsWith('/api')) {
-              ctx.session.user = user;
-            } else {
+          } else if (has_session(ctx) && is_authenticated(ctx)) {
+            if (!path.startsWith('/api')) {
               // log only non-API calls as a `view`
               ctx.session.views = ctx.session.views + 1 || 1;
               viewsMsg = `[Views: ${ctx.session.views}]`;
 
               await ctx.session.manuallyCommit();
-
-              ctx.session.user = user;
             }
+
+            ctx.session.user = await User.find({
+              cookie: ctx.cookies.get(Router.authCookieName)
+            });
 
             await next();
           } else {
-            ctx.redirect('/login'); // handled by Next
+            ctx.redirect('/login');
           }
         } finally {
           const xResponseTime = `${Date.now() - start}ms`;
@@ -166,14 +161,16 @@ export default class Server {
 
           if (ctx.status >= 400) chalkLog = chalk.red(logMsg);
           else if (ctx.status >= 300) chalkLog = chalk.inverse(logMsg);
-          else if (this.is_static_file(path)) chalkLog = chalk.cyan(logMsg);
+          else if (is_static_file(path)) chalkLog = chalk.cyan(logMsg);
           else chalkLog = chalk.green(logMsg);
 
           log(chalkLog);
         }
       });
 
-    routersToAttach.forEach(router => {
+    const routers = [new AuthRouter(), new ArticleRouter()];
+
+    routers.forEach(router => {
       for (const [path, methods] of router.pathsMap)
         this.apiPathsMethodsMap.set(path, methods);
 

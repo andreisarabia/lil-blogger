@@ -20,6 +20,10 @@ export default class Model {
     this.db = Database.instance(collection);
   }
 
+  protected id(): ObjectID {
+    return this.props._id;
+  }
+
   public async save(): Promise<this> {
     const [error, results] = await this.db.insert(this.props);
     if (error) throw error;

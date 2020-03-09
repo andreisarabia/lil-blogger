@@ -3,6 +3,7 @@ import Koa from 'koa';
 import config from '../config';
 import Router from './Router';
 import Article from '../models/Article';
+import User from '../models/User';
 import { sort_by_date, is_url } from '../util';
 
 type ParseRequestOptions = {
@@ -37,12 +38,8 @@ export default class ArticleRouter extends Router {
     if (is_url(url)) {
       let article = await Article.find(url);
 
-      if (article) {
-        await article.update({ url, canonicalUrl: url });
-      } else {
-        article = await Article.create(url);
-        await article.save();
-      }
+      if (article) await article.update({ url, canonicalUrl: url });
+      else article = await Article.create(url).then(article => article.save());
 
       ctx.body = { msg: 'ok', article: article.info };
     } else {

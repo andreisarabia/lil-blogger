@@ -53,7 +53,7 @@ export default class Server {
     autoCommit: false
   };
 
-  private stats: { dbStartup: number; clientStartup: number } = {
+  private stats: { [k: string]: number } = {
     dbStartup: null,
     clientStartup: null
   };

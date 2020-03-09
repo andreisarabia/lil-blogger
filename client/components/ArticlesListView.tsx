@@ -53,7 +53,7 @@ export default class ArticlesListView extends React.Component<
             {Array.isArray(this.props.list)
               ? this.props.list.length > 0
                 ? 'Your Articles'
-                : 'Please add an to save for later'
+                : 'Please add an article to save for later'
               : 'Fetching your articles...'}
           </h2>
           <button onClick={this.toggle_article_input}>+</button>

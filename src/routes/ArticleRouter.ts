@@ -1,7 +1,7 @@
 import Koa from 'koa';
 
 import config from '../config';
-import Router from './Router';
+import { Router } from './Router';
 import Article from '../models/Article';
 import User from '../models/User';
 import { sort_by_date, is_url } from '../util';
@@ -10,7 +10,7 @@ type ParseRequestOptions = {
   url: string;
 };
 
-export default class ArticleRouter extends Router {
+export class ArticleRouter extends Router {
   constructor() {
     super('/article');
 

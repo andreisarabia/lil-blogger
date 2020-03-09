@@ -1,20 +1,17 @@
 import Koa from 'koa';
 import { v4 as uuidv4 } from 'uuid';
 
-import Router from './Router';
+import { Router } from './Router';
 import User from '../models/User';
-import config from '../config';
 
 type AccountLoginParameters = {
   email: string;
   password: string;
 };
 
-export default class AuthRouter extends Router {
-  public readonly sessionName = '_app_auth';
-
+export class AuthRouter extends Router {
   constructor() {
-    super('/auth');
+    super('/auth', { requiresAuth: false });
 
     this.instance
       .post('/login', ctx => this.login(ctx))
@@ -29,7 +26,7 @@ export default class AuthRouter extends Router {
       const user = await User.find({ email });
 
       await user.update({ cookie });
-      ctx.cookies.set(this.sessionName, cookie, super.sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
 
       ctx.body = { error: null, msg: '' };
     } else {
@@ -55,7 +52,7 @@ export default class AuthRouter extends Router {
       const user = await User.create({ email, password, cookie });
 
       await user.save();
-      ctx.cookies.set(this.sessionName, cookie, super.sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };
     }

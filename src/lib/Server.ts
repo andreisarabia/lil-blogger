@@ -10,7 +10,7 @@ import chalk from 'chalk';
 import config from '../config';
 import Database from '../lib/Database';
 import User from '../models/User';
-import routers from '../routes';
+import { Router, AuthRouter, ArticleRouter } from '../routes';
 import { is_url } from '../util/fn';
 
 type ContentSecurityPolicy = {
@@ -19,6 +19,7 @@ type ContentSecurityPolicy = {
 
 const log = console.log;
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
+const routersToAttach = [new AuthRouter(), new ArticleRouter()];
 
 let singleton: Server = null;
 
@@ -93,30 +94,9 @@ export default class Server {
     return Boolean(ctx.cookies.get('__app'));
   }
 
-  private is_authenticated(ctx: Koa.ParameterizedContext) {
-    return Boolean(ctx.cookies.get('_app_auth'));
-  }
-
   private is_static_file(path: string) {
     return ['_next', '.ico', '.json'].some(urlSegment =>
       path.includes(urlSegment)
-    );
-  }
-
-  /**
-   * We pass down the request through the middleware chain only if:
-   * user is trying to access `/login` (Next route) or `/auth` (API route)
-   * user is requesting static resources (Next)
-   * user has a session beforehand AND has authenticated their info
-   */
-  private does_not_require_login(ctx: Koa.ParameterizedContext) {
-    const { path } = ctx;
-    return (
-      path.startsWith('/login') ||
-      path.startsWith('/auth') ||
-      this.is_static_file(path) ||
-      this.has_session(ctx) ||
-      this.is_authenticated(ctx)
     );
   }
 
@@ -137,20 +117,37 @@ export default class Server {
 
         ctx.set(defaultApiHeaders);
 
+        const { path } = ctx;
+
         let viewsMsg = '';
 
         try {
-          if (!this.is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
-            ctx.session.views = ctx.session.views + 1 || 1;
-            viewsMsg = `[Views: ${ctx.session.views}]`;
-            await ctx.session.manuallyCommit();
-          }
+          if (this.is_static_file(path)) return await next(); // handled by Next
 
-          if (this.does_not_require_login(ctx)) {
-            if (!this.is_static_file(ctx.path)) {
-              ctx.session.user = await User.find({
-                cookie: ctx.cookies.get('_app_auth')
-              });
+          if (path.startsWith('/login') || path.startsWith('/api/auth')) {
+            if (path.startsWith('/login')) {
+              ctx.session.views = ctx.session.views + 1 || 1;
+              viewsMsg = `[Views: ${ctx.session.views}]`;
+            }
+
+            await ctx.session.manuallyCommit();
+            await next();
+          } else if (this.has_session(ctx)) {
+            // the user is authenticated at this point
+            const user = await User.find({
+              cookie: ctx.cookies.get(Router.authCookieName)
+            });
+
+            if (path.startsWith('/api')) {
+              ctx.session.user = user;
+            } else {
+              // log only non-API calls as a `view`
+              ctx.session.views = ctx.session.views + 1 || 1;
+              viewsMsg = `[Views: ${ctx.session.views}]`;
+
+              await ctx.session.manuallyCommit();
+
+              ctx.session.user = user;
             }
 
             await next();
@@ -163,20 +160,20 @@ export default class Server {
           if (config.IS_DEV && !ctx.headerSent)
             ctx.set('X-Response-Time', xResponseTime);
 
-          const logMsg = `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
+          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
 
           let chalkLog: string;
 
           if (ctx.status >= 400) chalkLog = chalk.red(logMsg);
           else if (ctx.status >= 300) chalkLog = chalk.inverse(logMsg);
-          else if (this.is_static_file(ctx.path)) chalkLog = chalk.cyan(logMsg);
+          else if (this.is_static_file(path)) chalkLog = chalk.cyan(logMsg);
           else chalkLog = chalk.green(logMsg);
 
           log(chalkLog);
         }
       });
 
-    routers.forEach(router => {
+    routersToAttach.forEach(router => {
       for (const [path, methods] of router.pathsMap)
         this.apiPathsMethodsMap.set(path, methods);
 

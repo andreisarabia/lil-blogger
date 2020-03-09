@@ -1,8 +1,14 @@
+import Koa from 'koa';
 import KoaRouter from 'koa-router';
 
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
+const defaultApiHeader = { 'Content-Type': 'application/json' };
+const is_authenticated = (ctx: Koa.ParameterizedContext) =>
+  Boolean(ctx.cookies.get('_app_auth'));
 
-export default class Router {
+export class Router {
+  public static readonly authCookieName = '_app_auth';
+
   public readonly sessionName?: string;
   protected instance: KoaRouter;
   protected allPathsWithMethods = new Map<string, string[]>();
@@ -11,17 +17,22 @@ export default class Router {
     maxAge: ONE_DAY_IN_MS,
     overwrite: true,
     signed: true,
-    httpOnly: true,
-    autoCommit: true
+    httpOnly: true
   };
 
-  protected constructor(prefix: string) {
+  protected constructor(
+    prefix: string,
+    { requiresAuth } = { requiresAuth: true }
+  ) {
     this.instance = new KoaRouter({ prefix: `/api${prefix}` });
 
-    const defaultApiHeader = { 'Content-Type': 'application/json' };
-
     this.instance.use(async (ctx, next) => {
+      if (requiresAuth && !is_authenticated(ctx)) {
+        ctx.throw(400, 'Not allowed.');
+      }
+
       ctx.set(defaultApiHeader);
+
       await next();
     });
   }

@@ -1,9 +1,9 @@
 import Koa from 'koa';
 
-import config from '../config';
 import { Router } from './Router';
 import Article from '../models/Article';
 import User from '../models/User';
+import config from '../config';
 import { sort_by_date, is_url } from '../util';
 
 type ParseRequestOptions = {
@@ -37,23 +37,24 @@ export class ArticleRouter extends Router {
     const { url } = ctx.request.body as ParseRequestOptions;
 
     if (is_url(url)) {
-      let article = await Article.find(url);
+      const user: User = ctx.session.user;
+
+      let article = await Article.find(user);
 
       if (article) {
         await article.update({ url, canonicalUrl: url });
       } else {
         const user: User = ctx.session.user;
-
         article = await Article.create({ url, userId: user.id });
+
         await article.save();
       }
 
       ctx.body = { msg: 'ok', article: article.info };
     } else {
       ctx.status = 400;
-      ctx.body = {
-        msg: 'Cannot parse given URL.'
-      };
+
+      ctx.body = { msg: 'Cannot parse given URL.' };
     }
   }
 
@@ -65,9 +66,8 @@ export class ArticleRouter extends Router {
       ctx.body = { msg: 'ok' };
     } else {
       ctx.status = 400;
-      ctx.body = {
-        msg: 'Could not delete the given URL.'
-      };
+
+      ctx.body = { msg: 'Could not delete the given URL.' };
     }
   }
 
@@ -81,8 +81,8 @@ export class ArticleRouter extends Router {
     } catch (error) {
       let msg: string;
 
-      if (error instanceof Error && error.stack) {
-        console.error(error.stack);
+      if (error instanceof Error) {
+        if (error.stack) console.error(error.stack);
 
         msg = config.IS_DEV
           ? `Error deleting all articles: ${error.message}`

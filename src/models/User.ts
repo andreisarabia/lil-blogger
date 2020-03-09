@@ -57,9 +57,9 @@ export default class User extends Model {
     cookie
   }: Omit<UserProps, 'uniqueId'>): Promise<User> {
     const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
-    password = await bcrypt.hash(password, SALT_ROUNDS);
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    return new User({ email, password, uniqueId, cookie });
+    return new User({ email, password: hash, uniqueId, cookie });
   }
 
   public static async find(searchProps: Partial<UserProps>): Promise<User> {
@@ -72,15 +72,11 @@ export default class User extends Model {
     return userData ? new User(userData) : null;
   }
 
-  public static async validate_login(
-    email: string,
-    password: string
+  public static async are_valid_credentials(
+    user: User,
+    supposedPassword: string
   ): Promise<boolean> {
-    const user = await User.find({ email });
-    const hash = user ? user.password : '';
-    const isMatchingPassword = await bcrypt.compare(password, hash);
-
-    return isMatchingPassword;
+    return bcrypt.compare(supposedPassword, user.password);
   }
 
   public static async verify_user_data(

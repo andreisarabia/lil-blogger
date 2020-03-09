@@ -20,10 +20,10 @@ export class AuthRouter extends Router {
 
   private async login(ctx: Koa.ParameterizedContext) {
     const { email = '', password } = ctx.request.body as AccountLoginParameters;
+    const user = await User.find({ email });
 
-    if (await User.validate_login(email, password)) {
+    if (await User.are_valid_credentials(user, password)) {
       const cookie = uuidv4();
-      const user = await User.find({ email });
 
       await user.update({ cookie });
       ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
@@ -40,7 +40,6 @@ export class AuthRouter extends Router {
 
   private async register(ctx: Koa.ParameterizedContext) {
     const { email, password } = ctx.request.body as AccountLoginParameters;
-
     const errors = await User.verify_user_data(email, password);
 
     if (errors) {

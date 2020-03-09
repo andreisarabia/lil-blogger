@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ObjectID } from 'mongodb';
 
 import Model, { BaseProps } from './Model';
+import User from './User';
 import { sanitize, remove_extra_whitespace } from '../util';
 import { ALLOWED_HTML_TAGS } from './constants';
 
@@ -28,6 +29,12 @@ export default class Article extends Model {
     super(props, Article.collectionName);
   }
 
+  public get info(): Omit<ArticleProps, '_id' | 'userId'> {
+    const { _id, userId, ...publicProps } = this.props;
+
+    return publicProps;
+  }
+
   private update_props<Key extends ArticlePropsKey>(
     key: Key,
     value: ArticleProps[Key]
@@ -37,29 +44,32 @@ export default class Article extends Model {
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     const keys = Object.keys(propsToUpdate) as ArticlePropsKey[];
+    let updatedProps: { [key: string]: any } = {};
 
     for (const key of keys) {
       if (!(key in this.props)) continue;
-      if (propsToUpdate[key] === undefined) continue;
+
+      const value = propsToUpdate[key];
+
+      if (value === undefined) continue;
 
       if (key === 'canonicalUrl') {
         // we want to get the original location's refreshed content
-        const newProps = await Article.extract_url_data(propsToUpdate[key]);
+        const newProps = await Article.extract_url_data(value as string);
 
-        this.props = { ...this.props, ...newProps };
+        updatedProps = { ...updatedProps, ...newProps };
         break;
       } else {
-        this.update_props(key, propsToUpdate[key]);
+        this.update_props(key, value);
+        updatedProps[key] = value;
       }
     }
 
-    await this.save();
-  }
-
-  public get info(): Omit<ArticleProps, '_id'> {
-    const { _id, ...publicProps } = this.props;
-
-    return publicProps;
+    await Model.update_one(
+      Article.collectionName,
+      { _id: this.id },
+      updatedProps
+    );
   }
 
   public static async create({
@@ -72,10 +82,10 @@ export default class Article extends Model {
     return new Article({ ...cleanData, uniqueId, userId });
   }
 
-  public static async find(url: string): Promise<Article> {
+  public static async find(user: User): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,
-      criteria: { url, canonicalUrl: url },
+      criteria: { userId: user.id },
       limit: 1
     })) as ArticleProps;
 

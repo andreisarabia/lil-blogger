@@ -28,7 +28,7 @@ export class AuthRouter extends Router {
       await user.update({ cookie });
       ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
 
-      ctx.body = { error: null, msg: '' };
+      ctx.body = { error: null, msg: 'ok' };
     } else {
       ctx.status = 400;
       const error =

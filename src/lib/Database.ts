@@ -5,6 +5,7 @@ import {
   InsertOneWriteOpResult,
   InsertWriteOpResult,
   FindAndModifyWriteOpResultObject,
+  UpdateWriteOpResult,
   MongoClient,
   ObjectId
 } from 'mongodb';
@@ -65,6 +66,18 @@ export default class Database {
     }
 
     return results;
+  }
+
+  public async update_one(
+    searchProps: object,
+    props: object
+  ): Promise<boolean> {
+    const { result }: UpdateWriteOpResult = await this.dbCollection.updateOne(
+      searchProps,
+      props
+    );
+
+    return result.ok === 1;
   }
 
   public async delete(criteria: FilterQuery<object>): Promise<boolean> {

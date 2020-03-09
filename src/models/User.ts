@@ -19,14 +19,9 @@ const SALT_ROUNDS = 10;
 
 export default class User extends Model {
   private static readonly collectionName = 'users';
-  private static recentUsersCache = new Map<string, User>();
 
   protected constructor(protected props: UserProps) {
     super(props, User.collectionName);
-  }
-
-  private get cookie(): string {
-    return this.props.cookie;
   }
 
   private get password(): string {
@@ -42,16 +37,18 @@ export default class User extends Model {
 
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
     const keys = Object.keys(propsToUpdate) as UserPropsKey[];
+    const updatedProps: { [key: string]: any } = {};
 
     for (const key of keys) {
       if (!(key in this.props)) continue;
-
       const value = propsToUpdate[key];
-
-      if (value !== undefined) this.update_props(key, value);
+      if (value !== undefined) {
+        this.update_props(key, value);
+        updatedProps[key] = value;
+      }
     }
 
-    await this.save();
+    await Model.update_one(User.collectionName, { _id: this.id }, updatedProps);
   }
 
   public static async create({
@@ -66,22 +63,13 @@ export default class User extends Model {
   }
 
   public static async find(searchProps: Partial<UserProps>): Promise<User> {
-    if (searchProps.cookie && this.recentUsersCache.has(searchProps.cookie))
-      return this.recentUsersCache.get(searchProps.cookie);
-
     const userData = (await Model.search({
       collection: User.collectionName,
       criteria: searchProps,
       limit: 1
     })) as UserProps;
 
-    if (!userData) return null;
-
-    const user = new User(userData);
-
-    this.recentUsersCache.set(user.cookie, user);
-
-    return user;
+    return userData ? new User(userData) : null;
   }
 
   public static async validate_login(

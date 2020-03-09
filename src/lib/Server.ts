@@ -9,6 +9,7 @@ import chalk from 'chalk';
 
 import config from '../config';
 import Database from '../lib/Database';
+import User from '../models/User';
 import routers from '../routes';
 import { is_url } from '../util/fn';
 
@@ -79,13 +80,13 @@ export default class Server {
   private async initialize_client_app(): Promise<void> {
     const start = Date.now();
     await this.clientApp.prepare();
-    this.stats['clientStartup'] = Date.now() - start;
+    this.stats.clientStartup = Date.now() - start;
   }
 
   private async initialize_database(): Promise<void> {
     const start = Date.now();
     await Database.initialize();
-    this.stats['dbStartup'] = Date.now() - start;
+    this.stats.dbStartup = Date.now() - start;
   }
 
   private has_session(ctx: Koa.ParameterizedContext) {
@@ -146,6 +147,12 @@ export default class Server {
           }
 
           if (this.does_not_require_login(ctx)) {
+            if (!this.is_static_file(ctx.path)) {
+              ctx.session.user = await User.find({
+                cookie: ctx.cookies.get('_app_auth')
+              });
+            }
+
             await next();
           } else {
             ctx.redirect('/login'); // handled by Next
@@ -169,11 +176,13 @@ export default class Server {
         }
       });
 
-    routers.forEach(({ pathsMap, middleware }) => {
-      for (const [path, methods] of pathsMap)
+    routers.forEach(router => {
+      for (const [path, methods] of router.pathsMap)
         this.apiPathsMethodsMap.set(path, methods);
 
-      this.app.use(middleware.routes()).use(middleware.allowedMethods());
+      this.app
+        .use(router.middleware.routes())
+        .use(router.middleware.allowedMethods());
     });
   }
 
@@ -220,11 +229,9 @@ export default class Server {
       log(`Listening on port ${this.appPort}...`);
       log('Content Security Policy: ', this.cspHeader);
       log('Registered paths:', this.apiPathsMethodsMap);
-      log(`Took ${this.stats['dbStartup']}ms to connect to the database.`);
+      log(`Took ${this.stats.dbStartup}ms to connect to the database.`);
       if (config.SHOULD_COMPILE) {
-        log(
-          `Took ${this.stats['clientStartup']}ms to build client application.`
-        );
+        log(`Took ${this.stats.clientStartup}ms to build client application.`);
       }
     });
   }

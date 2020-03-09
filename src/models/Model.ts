@@ -20,7 +20,7 @@ export default class Model {
     this.db = Database.instance(collection);
   }
 
-  protected id(): ObjectID {
+  public get id(): ObjectID {
     return this.props._id;
   }
 

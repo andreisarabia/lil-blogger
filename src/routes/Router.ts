@@ -1,12 +1,14 @@
 import KoaRouter from 'koa-router';
 
+const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
+
 export default class Router {
   public readonly sessionName?: string;
   protected instance: KoaRouter;
   protected allPathsWithMethods = new Map<string, string[]>();
   protected readonly sessionConfig = {
     key: '__app',
-    maxAge: 100000,
+    maxAge: ONE_DAY_IN_MS,
     overwrite: true,
     signed: true,
     httpOnly: true,

@@ -24,54 +24,40 @@ export default class AuthRouter extends Router {
   private async login(ctx: Koa.ParameterizedContext) {
     const { email = '', password } = ctx.request.body as AccountLoginParameters;
 
-    let error: string = null;
-    let msg = '';
+    if (await User.validate_login(email, password)) {
+      const cookie = uuidv4();
+      const user = await User.find({ email });
 
-    if (await User.validate_login({ email, password })) {
-      ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
-      msg = 'ok';
+      await user.update({ cookie });
+      ctx.cookies.set(this.sessionName, cookie, super.sessionConfig);
+
+      ctx.body = { error: null, msg: '' };
     } else {
       ctx.status = 400;
-      error =
+      const error =
         'Could not validate the email and password combination. Please try again.';
-    }
 
-    ctx.body = { error, msg };
+      ctx.body = { error, msg: '' };
+    }
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
     const { email, password } = ctx.request.body as AccountLoginParameters;
-    const userData = { email, password };
 
-    let errors: string[] = null;
-    let msg = '';
+    const errors = await User.verify_user_data(email, password);
 
-    try {
-      errors = await User.verify_user_data(userData);
-
-      if (errors) {
-        ctx.status = 400;
-      } else {
-        const user = await User.create(userData);
-        await user.save();
-
-        ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
-
-        msg = 'ok';
-      }
-    } catch (error) {
+    if (errors) {
       ctx.status = 400;
-      errors = [
-        'Something went wrong with creating your account. Please try again.'
-      ];
 
-      if (config.IS_DEV && error instanceof Error) {
-        if (error.stack) console.log(error.stack);
+      ctx.body = { errors, msg: '' };
+    } else {
+      const cookie = uuidv4();
+      const user = await User.create({ email, password, cookie });
 
-        errors.push(error.message);
-      }
+      await user.save();
+      ctx.cookies.set(this.sessionName, cookie, super.sessionConfig);
+
+      ctx.body = { errors: null, msg: 'ok' };
     }
-
-    ctx.body = { errors, msg };
   }
 }

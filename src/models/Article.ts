@@ -3,6 +3,7 @@ import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { ObjectID } from 'mongodb';
 
 import Model, { BaseProps } from './Model';
 import { sanitize, remove_extra_whitespace } from '../util';
@@ -13,6 +14,7 @@ export interface ArticleProps extends BaseProps, ParseResult {
   createdOn: string; // UTC
   uniqueId: string;
   slug: string;
+  userId: ObjectID;
 }
 
 type ArticlePropsKey = keyof ArticleProps;
@@ -34,7 +36,9 @@ export default class Article extends Model {
   }
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
-    for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
+    const keys = Object.keys(propsToUpdate) as ArticlePropsKey[];
+
+    for (const key of keys) {
       if (!(key in this.props)) continue;
       if (propsToUpdate[key] === undefined) continue;
 
@@ -58,11 +62,14 @@ export default class Article extends Model {
     return publicProps;
   }
 
-  public static async create(url: string): Promise<Article> {
+  public static async create({
+    url,
+    userId
+  }: Pick<ArticleProps, 'url' | 'userId'>): Promise<Article> {
     const cleanData = await Article.extract_url_data(url);
     const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
 
-    return new Article({ ...cleanData, uniqueId });
+    return new Article({ ...cleanData, uniqueId, userId });
   }
 
   public static async find(url: string): Promise<Article> {
@@ -75,10 +82,12 @@ export default class Article extends Model {
     return articleData ? new Article(articleData) : null;
   }
 
-  public static async find_all(): Promise<Article[]> {
+  public static async find_all(
+    searchProps: Partial<ArticleProps> = {}
+  ): Promise<Article[]> {
     const data = (await Model.search({
       collection: Article.collectionName,
-      criteria: {},
+      criteria: searchProps,
       limit: 0
     })) as ArticleProps[];
     const articles = data

@@ -22,7 +22,8 @@ export default class ArticleRouter extends Router {
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
-    const articles: Article[] = await Article.find_all();
+    const user: User = ctx.session.user;
+    const articles: Article[] = await Article.find_all({ userId: user.id });
     const articlesList = articles
       ? articles
           .map(article => article.info)
@@ -38,8 +39,14 @@ export default class ArticleRouter extends Router {
     if (is_url(url)) {
       let article = await Article.find(url);
 
-      if (article) await article.update({ url, canonicalUrl: url });
-      else article = await Article.create(url).then(article => article.save());
+      if (article) {
+        await article.update({ url, canonicalUrl: url });
+      } else {
+        const user: User = ctx.session.user;
+
+        article = await Article.create({ url, userId: user.id });
+        await article.save();
+      }
 
       ctx.body = { msg: 'ok', article: article.info };
     } else {

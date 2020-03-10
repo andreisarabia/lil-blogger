@@ -1,6 +1,6 @@
 import Koa from 'koa';
 
-import { Router } from './Router';
+import Router from './Router';
 import Article from '../models/Article';
 import User from '../models/User';
 import config from '../config';
@@ -10,7 +10,7 @@ type ParseRequestOptions = {
   url: string;
 };
 
-export class ArticleRouter extends Router {
+export default class ArticleRouter extends Router {
   constructor() {
     super('/article');
 
@@ -53,7 +53,6 @@ export class ArticleRouter extends Router {
       ctx.body = { msg: 'ok', article: article.info };
     } else {
       ctx.status = 400;
-
       ctx.body = { msg: 'Cannot parse given URL.' };
     }
   }
@@ -66,7 +65,6 @@ export class ArticleRouter extends Router {
       ctx.body = { msg: 'ok' };
     } else {
       ctx.status = 400;
-
       ctx.body = { msg: 'Could not delete the given URL.' };
     }
   }
@@ -77,21 +75,21 @@ export class ArticleRouter extends Router {
     try {
       await Article.delete_all();
 
-      ctx.body = { msg: 'ok' };
+      ctx.body = { error: null, msg: 'ok' };
     } catch (error) {
-      let msg: string;
+      let err: string;
 
       if (error instanceof Error) {
         if (error.stack) console.error(error.stack);
 
-        msg = config.IS_DEV
+        err = config.IS_DEV
           ? `Error deleting all articles: ${error.message}`
           : 'fail';
       } else {
-        msg = 'fail';
+        err = 'fail';
       }
 
-      ctx.body = { msg };
+      ctx.body = { error: err, msg: '' };
     }
   }
 }

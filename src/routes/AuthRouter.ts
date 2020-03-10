@@ -1,7 +1,7 @@
 import Koa from 'koa';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Router } from './Router';
+import Router from './Router';
 import User from '../models/User';
 
 type AccountLoginParameters = {
@@ -9,7 +9,7 @@ type AccountLoginParameters = {
   password: string;
 };
 
-export class AuthRouter extends Router {
+export default class AuthRouter extends Router {
   constructor() {
     super('/auth', { requiresAuth: false });
 
@@ -30,10 +30,10 @@ export class AuthRouter extends Router {
 
       ctx.body = { error: null, msg: 'ok' };
     } else {
-      ctx.status = 400;
       const error =
         'Could not validate the email and password combination. Please try again.';
 
+      ctx.status = 400;
       ctx.body = { error, msg: '' };
     }
   }

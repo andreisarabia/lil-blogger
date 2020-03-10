@@ -1,3 +1,5 @@
-export * from './Router';
-export * from './AuthRouter';
-export * from './ArticleRouter';
+import Router from './Router';
+import AuthRouter from './AuthRouter';
+import ArticleRouter from './ArticleRouter';
+
+export { Router, AuthRouter, ArticleRouter };

@@ -58,6 +58,7 @@ export default class Article extends Model {
         const newProps = await Article.extract_url_data(value as string);
 
         updatedProps = { ...updatedProps, ...newProps };
+        this.props = { ...this.props, ...updatedProps };
         break;
       } else {
         this.update_props(key, value);
@@ -148,7 +149,7 @@ export default class Article extends Model {
   }
 
   private static extract_slug(url: string): string {
-    const { pathname } = new URL(url);
+    const { pathname } = new URL(url); // easier to parse URLs with queries
     const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
 
     return lastPartOfUrl;

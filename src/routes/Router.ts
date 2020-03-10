@@ -6,7 +6,7 @@ const defaultApiHeader = { 'Content-Type': 'application/json' };
 const is_authenticated = (ctx: Koa.ParameterizedContext) =>
   Boolean(ctx.cookies.get('_app_auth'));
 
-export class Router {
+export default class Router {
   public static readonly authCookieName = '_app_auth';
 
   public readonly sessionName?: string;

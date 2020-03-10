@@ -4,6 +4,7 @@ import { UrlWithParsedQuery } from 'url';
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import koaSession from 'koa-session';
+import koaCompress from 'koa-compress';
 import nextApp from 'next';
 import chalk from 'chalk';
 
@@ -112,6 +113,7 @@ export default class Server {
     this.app
       .use(koaSession(this.sessionConfig, this.app))
       .use(koaBody({ json: true }))
+      .use(koaCompress())
       .use(async (ctx, next) => {
         const start = Date.now();
 

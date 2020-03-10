@@ -8,10 +8,10 @@ import koaCompress from 'koa-compress';
 import nextApp from 'next';
 import chalk from 'chalk';
 
-import config from '../config';
-import Database from '../lib/Database';
+import Database from './Database';
 import User from '../models/User';
 import { Router, AuthRouter, ArticleRouter } from '../routes';
+import config from '../config';
 import { is_url } from '../util/fn';
 
 type ContentSecurityPolicy = {

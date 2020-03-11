@@ -1,17 +1,17 @@
 import Koa from 'koa';
-import Router from './Router';
 import { v4 as uuidv4 } from 'uuid';
 
+import Router from './Router';
+import User from '../models/User';
+
 type AccountLoginParameters = {
-  username: string;
+  email: string;
   password: string;
 };
 
 export default class AuthRouter extends Router {
-  public readonly sessionName = '_app_auth';
-
   constructor() {
-    super('/auth');
+    super('/auth', { requiresAuth: false });
 
     this.instance
       .post('/login', ctx => this.login(ctx))
@@ -19,18 +19,41 @@ export default class AuthRouter extends Router {
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { username, password } = ctx.request.body as AccountLoginParameters;
+    const { email = '', password } = ctx.request.body as AccountLoginParameters;
+    const user = await User.find({ email });
 
-    ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+    if (await User.are_valid_credentials(user, password)) {
+      const cookie = uuidv4();
 
-    ctx.body = { msg: 'ok' };
+      await user.update({ cookie });
+      ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
+
+      ctx.body = { error: null, msg: 'ok' };
+    } else {
+      const error =
+        'Could not validate the email and password combination. Please try again.';
+
+      ctx.status = 400;
+      ctx.body = { error, msg: '' };
+    }
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
-    const { username, password } = ctx.request.body as AccountLoginParameters;
+    const { email, password } = ctx.request.body as AccountLoginParameters;
+    const errors = await User.verify_user_data(email, password);
 
-    ctx.cookies.set(this.sessionName, uuidv4(), super.sessionConfig);
+    if (errors) {
+      ctx.status = 400;
 
-    ctx.body = { msg: 'ok' };
+      ctx.body = { errors, msg: '' };
+    } else {
+      const cookie = uuidv4();
+      const user = await User.create({ email, password, cookie });
+
+      await user.save();
+      ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
+
+      ctx.body = { errors: null, msg: 'ok' };
+    }
   }
 }

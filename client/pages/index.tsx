@@ -1,43 +1,24 @@
 import React from 'react';
-import styled from 'styled-components';
 import axios from 'axios';
+import Head from 'next/head'
 
 import ArticleView from '../components/ArticleView';
 import ArticlesListView from '../components/ArticlesListView';
 import { ArticleProps } from '../typings';
+import { HomePageWrapper } from '../styles';
+import { sort_by_date } from '../util';
 
 interface HomePageArticleState {
   articlesList: ArticleProps[];
   viewingArticle: ArticleProps;
 }
 
-const HomePageWrapper = styled.div`
-  display: flex;
-  justify-content: space-around;
-  border-radius: 0.9rem;
-  padding: 1rem 2rem;
-  margin: auto;
-  width: 90%;
-  height: 97.5%;
-  background: #e5deee;
-  border: 1px solid #918a8a;
-`;
-
-const sort_by_date = (firstArticle, secondArticle) => {
-  const aMilleseconds = new Date(firstArticle.createdOn).getMilliseconds();
-  const bMilleseconds = new Date(secondArticle.createdOn).getMilliseconds();
-
-  if (aMilleseconds > bMilleseconds) return 1;
-  if (aMilleseconds < bMilleseconds) return -1;
-  return 0;
-};
-
 export default class HomePage extends React.Component<
   {},
   HomePageArticleState
 > {
   state = {
-    articlesList: [],
+    articlesList: null,
     viewingArticle: null
   };
 
@@ -63,7 +44,9 @@ export default class HomePage extends React.Component<
 
     if (msg === 'ok') {
       this.setState(state => ({
-        articlesList: [...state.articlesList, article].sort(sort_by_date),
+        articlesList: [...state.articlesList, article].sort((a, b) =>
+          sort_by_date(a.createdOn, b.createdOn)
+        ),
         viewingArticle: article
       }));
     }
@@ -78,6 +61,9 @@ export default class HomePage extends React.Component<
   render = () => {
     return (
       <HomePageWrapper>
+        <Head>
+          <title>Home</title>
+        </Head>
         <ArticlesListView
           list={this.state.articlesList}
           onArticleAdd={this.handle_add_article}

@@ -4,12 +4,14 @@ import { UrlWithParsedQuery } from 'url';
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import koaSession from 'koa-session';
+import koaCompress from 'koa-compress';
 import nextApp from 'next';
 import chalk from 'chalk';
 
+import Database from './Database';
+import User from '../models/User';
+import { Router, AuthRouter, ArticleRouter } from '../routes';
 import config from '../config';
-import Database from '../lib/Database';
-import routers from '../routes';
 import { is_url } from '../util/fn';
 
 type ContentSecurityPolicy = {
@@ -17,6 +19,18 @@ type ContentSecurityPolicy = {
 };
 
 const log = console.log;
+const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
+const FILE_TYPES = ['_next', '.ico', '.json'];
+
+// helpers
+const has_session = (ctx: Koa.ParameterizedContext) =>
+  Boolean(ctx.cookies.get('__app'));
+
+const is_authenticated = (ctx: Koa.ParameterizedContext) =>
+  Boolean(ctx.cookies.get(Router.authCookieName));
+
+const is_static_file = (path: string) =>
+  FILE_TYPES.some(type => path.includes(type));
 
 let singleton: Server = null;
 
@@ -45,11 +59,16 @@ export default class Server {
 
   private readonly sessionConfig = {
     key: '__app',
-    maxAge: 100000,
+    maxAge: ONE_DAY_IN_MS,
     overwrite: true,
     signed: true,
     httpOnly: true,
     autoCommit: false
+  };
+
+  private stats: { [k: string]: number } = {
+    dbStartup: null,
+    clientStartup: null
   };
 
   private constructor() {}
@@ -62,8 +81,6 @@ export default class Server {
         is_url(directive) ? directive : `'${directive}'`
       );
 
-      if (config.IS_DEV) preppedDirectives.push('http://localhost');
-
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
       header += header === '' ? directiveRule : `; ${directiveRule}`;
@@ -73,40 +90,15 @@ export default class Server {
   }
 
   private async initialize_client_app(): Promise<void> {
-    console.time('client-app-startup-time');
+    const start = Date.now();
     await this.clientApp.prepare();
-    console.timeEnd('client-app-startup-time');
+    this.stats.clientStartup = Date.now() - start;
   }
 
   private async initialize_database(): Promise<void> {
-    console.time('db-startup-time');
+    const start = Date.now();
     await Database.initialize();
-    console.timeEnd('db-startup-time');
-  }
-
-  private has_session(ctx: Koa.ParameterizedContext) {
-    return Boolean(ctx.cookies.get('__app'));
-  }
-
-  private is_authenticated(ctx: Koa.ParameterizedContext) {
-    return Boolean(ctx.cookies.get('_app_auth'));
-  }
-
-  private is_static_file(path: string) {
-    return ['_next', '.ico', '.json'].some(urlSegment =>
-      path.includes(urlSegment)
-    );
-  }
-
-  private does_not_require_login(ctx: Koa.ParameterizedContext) {
-    const { path } = ctx;
-    return (
-      path.startsWith('/login') ||
-      path.startsWith('/auth') ||
-      this.is_static_file(path) ||
-      this.has_session(ctx) ||
-      this.is_authenticated(ctx)
-    );
+    this.stats.dbStartup = Date.now() - start;
   }
 
   private attach_api_routes() {
@@ -118,60 +110,76 @@ export default class Server {
 
     this.app.keys = ['_app'];
 
-    this.app.use(koaSession(this.sessionConfig, this.app));
+    this.app
+      .use(koaSession(this.sessionConfig, this.app))
+      .use(koaBody({ json: true }))
+      .use(koaCompress())
+      .use(async (ctx, next) => {
+        const start = Date.now();
 
-    this.app.use(koaBody({ json: true }));
+        ctx.set(defaultApiHeaders);
 
-    this.app.use(async (ctx, next) => {
-      const start = process.hrtime();
+        const { path } = ctx;
 
-      ctx.set(defaultApiHeaders);
+        let viewsMsg = '';
 
-      let viewsMsg = '';
+        try {
+          if (is_static_file(path)) return await next(); // handled by Next
 
-      try {
-        if (!this.is_static_file(ctx.path) && !ctx.path.startsWith('/api')) {
-          ctx.session.views = ctx.session.views + 1 || 1;
-          viewsMsg = `[Views: ${ctx.session.views}]`;
-          await ctx.session.manuallyCommit();
+          if (path.startsWith('/login') || path.startsWith('/api/auth')) {
+            if (path.startsWith('/login')) {
+              ctx.session.views = ctx.session.views + 1 || 1;
+              viewsMsg = `[Views: ${ctx.session.views}]`;
+            }
+
+            await ctx.session.manuallyCommit();
+            await next();
+          } else if (has_session(ctx) && is_authenticated(ctx)) {
+            if (!path.startsWith('/api')) {
+              // log only non-API calls as a `view`
+              ctx.session.views = ctx.session.views + 1 || 1;
+              viewsMsg = `[Views: ${ctx.session.views}]`;
+
+              await ctx.session.manuallyCommit();
+            }
+
+            ctx.session.user = await User.find({
+              cookie: ctx.cookies.get(Router.authCookieName)
+            });
+
+            await next();
+          } else {
+            ctx.redirect('/login');
+          }
+        } finally {
+          const xResponseTime = `${Date.now() - start}ms`;
+
+          if (config.IS_DEV && !ctx.headerSent)
+            ctx.set('X-Response-Time', xResponseTime);
+
+          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
+
+          let chalkLog: string;
+
+          if (ctx.status >= 400) chalkLog = chalk.red(logMsg);
+          else if (ctx.status >= 300) chalkLog = chalk.inverse(logMsg);
+          else if (is_static_file(path)) chalkLog = chalk.cyan(logMsg);
+          else chalkLog = chalk.green(logMsg);
+
+          log(chalkLog);
         }
+      });
 
-        ctx.state.render = this.clientApp.render.bind(this.clientApp);
+    const routers = [new AuthRouter(), new ArticleRouter()];
 
-        if (this.does_not_require_login(ctx)) {
-          await next();
-        } else {
-          ctx.redirect('/login'); // handled by Next
-        }
-      } finally {
-        const [seconds, nanoSeconds] = process.hrtime(start);
-        const xResponseTime = `${seconds * 1000 + nanoSeconds / 1000000}ms`;
-
-        if (config.IS_DEV && !ctx.headerSent)
-          ctx.set('X-Response-Time', xResponseTime);
-
-        const chalkMsg = `${ctx.method} ${ctx.path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
-
-        let chalkLog: string;
-
-        if (ctx.status >= 400) chalkLog = chalk.red(chalkMsg);
-        else if (ctx.status >= 300) chalkLog = chalk.inverse(chalkMsg);
-        else if (this.is_static_file(ctx.path)) chalkLog = chalk.cyan(chalkMsg);
-        else chalkLog = chalk.green(chalkMsg);
-
-        log(chalkLog);
-      }
-    });
-
-    routers.forEach(({ pathsMap, middleware }) => {
-      for (const [path, methods] of pathsMap)
+    routers.forEach(router => {
+      for (const [path, methods] of router.pathsMap)
         this.apiPathsMethodsMap.set(path, methods);
 
-      this.app.use(middleware.routes()).use(middleware.allowedMethods());
+      this.app
+        .use(router.middleware.routes())
+        .use(router.middleware.allowedMethods());
     });
-
-    log(this.csp);
-    log(this.apiPathsMethodsMap);
   }
 
   private attach_client_routes() {
@@ -183,7 +191,7 @@ export default class Server {
       ctx.set(defaultClientHeaders);
       await this.clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
-      ctx.session = null; // prevent err w/ Next and its handling of headers
+      // ctx.session = null; // prevent err w/ Next and its handling of headers
     });
   }
 
@@ -214,7 +222,13 @@ export default class Server {
 
   public start(): void {
     this.app.listen(this.appPort, () => {
-      console.log(`Listening on port ${this.appPort}...`);
+      log(`Listening on port ${this.appPort}...`);
+      log('Content Security Policy: ', this.cspHeader);
+      log('Registered paths:', this.apiPathsMethodsMap);
+      log(`Took ${this.stats.dbStartup}ms to connect to the database.`);
+      if (config.SHOULD_COMPILE) {
+        log(`Took ${this.stats.clientStartup}ms to build client application.`);
+      }
     });
   }
 

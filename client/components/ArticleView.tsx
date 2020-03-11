@@ -1,27 +1,11 @@
 import React from 'react';
-import styled from 'styled-components';
 
 import { ArticleProps } from '../typings';
+import { ArticleViewSection } from '../styles';
 
 interface ArticleViewProps {
   focusedArticle: ArticleProps;
 }
-
-const ArticleViewSection = styled.section`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: auto;
-
-  .article-view {
-    padding: 1rem;
-  }
-
-  .moreInfo {
-    display: flex;
-    justify-content: space-around;
-  }
-`;
 
 export default class ArticleView extends React.Component<ArticleViewProps> {
   constructor(props) {
@@ -32,7 +16,7 @@ export default class ArticleView extends React.Component<ArticleViewProps> {
     const { focusedArticle: article } = this.props;
     return (
       <ArticleViewSection>
-        <h2>{article ? article.title : 'Fetching articles...'}</h2>
+        <h2>{article ? article.title : ''}</h2>
         <div className='moreInfo'>
           {article && article.date_published && (
             <h4>

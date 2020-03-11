@@ -3,8 +3,10 @@ import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { ObjectID } from 'mongodb';
 
 import Model, { BaseProps } from './Model';
+import User from './User';
 import { sanitize, remove_extra_whitespace } from '../util';
 import { ALLOWED_HTML_TAGS } from './constants';
 
@@ -13,6 +15,7 @@ export interface ArticleProps extends BaseProps, ParseResult {
   createdOn: string; // UTC
   uniqueId: string;
   slug: string;
+  userId: ObjectID;
 }
 
 type ArticlePropsKey = keyof ArticleProps;
@@ -22,8 +25,14 @@ type ArticleUrlExtractionData = Omit<ArticleProps, 'uniqueId'>;
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
 
-  constructor(protected props: ArticleProps) {
+  protected constructor(protected props: ArticleProps) {
     super(props, Article.collectionName);
+  }
+
+  public get info(): Omit<ArticleProps, '_id' | 'userId'> {
+    const { _id, userId, ...publicProps } = this.props;
+
+    return publicProps;
   }
 
   private update_props<Key extends ArticlePropsKey>(
@@ -34,66 +43,71 @@ export default class Article extends Model {
   }
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
-    for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
+    const keys = Object.keys(propsToUpdate) as ArticlePropsKey[];
+
+    let updatedProps: { [key: string]: any } = {};
+
+    for (const key of keys) {
       if (!(key in this.props)) continue;
-      if (propsToUpdate[key] === undefined) continue;
+
+      const value = propsToUpdate[key];
+
+      if (value === undefined) continue;
 
       if (key === 'canonicalUrl') {
         // we want to get the original location's refreshed content
-        const newProps = await Article.extract_url_data(propsToUpdate[key]);
+        const newProps = await Article.extract_url_data(value as string);
 
-        this.props = { ...this.props, ...newProps };
+        updatedProps = { ...updatedProps, ...newProps };
+        this.props = { ...this.props, ...updatedProps };
         break;
       } else {
-        this.update_props(key, propsToUpdate[key]);
+        this.update_props(key, value);
+        updatedProps[key] = value;
       }
     }
 
-    await this.save();
+    await Model.update_one(
+      Article.collectionName,
+      { _id: this.id },
+      updatedProps
+    );
   }
 
-  public get info(): Omit<ArticleProps, '_id'> {
-    const { _id, ...publicProps } = this.props;
+  public static async create({
+    url,
+    userId
+  }: Pick<ArticleProps, 'url' | 'userId'>): Promise<Article> {
+    const cleanData = await Article.extract_url_data(url);
+    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
 
-    return publicProps;
+    return new Article({ ...cleanData, uniqueId, userId });
   }
 
-  public static async find(url: string): Promise<Article> {
+  public static async find(user: User): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,
-      criteria: { url, canonicalUrl: url },
+      criteria: { userId: user.id },
       limit: 1
     })) as ArticleProps;
 
     return articleData ? new Article(articleData) : null;
   }
 
-  public static async create(url: string): Promise<Article> {
-    const cleanData = await Article.extract_url_data(url);
-    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
-
-    return new Article({ ...cleanData, uniqueId });
-  }
-
-  public static async find_all(): Promise<Article[]> {
-    const data = (await Model.search({
+  public static async find_all(
+    searchProps: Partial<ArticleProps> = {}
+  ): Promise<Article[]> {
+    const articlesData = (await Model.search({
       collection: Article.collectionName,
-      criteria: {},
+      criteria: searchProps,
       limit: 0
     })) as ArticleProps[];
-    const articles = data
-      ? data.map(articleData => new Article(articleData))
-      : null;
 
-    return articles;
+    return articlesData ? articlesData.map(data => new Article(data)) : null;
   }
 
-  public static async delete(url: string): Promise<boolean> {
-    const wasRemoved = await Model.remove(Article.collectionName, {
-      url
-    });
-
-    return wasRemoved;
+  public static delete(user: User, url: string): Promise<boolean> {
+    return Model.remove(Article.collectionName, { userId: user.id, url });
   }
 
   public static delete_all(): Promise<boolean> {
@@ -129,7 +143,7 @@ export default class Article extends Model {
   }
 
   private static extract_slug(url: string): string {
-    const { pathname } = new URL(url);
+    const { pathname } = new URL(url); // easier to parse URLs with queries
     const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
 
     return lastPartOfUrl;

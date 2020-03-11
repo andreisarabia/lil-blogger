@@ -44,6 +44,7 @@ export default class Article extends Model {
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     const keys = Object.keys(propsToUpdate) as ArticlePropsKey[];
+
     let updatedProps: { [key: string]: any } = {};
 
     for (const key of keys) {
@@ -96,24 +97,17 @@ export default class Article extends Model {
   public static async find_all(
     searchProps: Partial<ArticleProps> = {}
   ): Promise<Article[]> {
-    const data = (await Model.search({
+    const articlesData = (await Model.search({
       collection: Article.collectionName,
       criteria: searchProps,
       limit: 0
     })) as ArticleProps[];
-    const articles = data
-      ? data.map(articleData => new Article(articleData))
-      : null;
 
-    return articles;
+    return articlesData ? articlesData.map(data => new Article(data)) : null;
   }
 
-  public static async delete(url: string): Promise<boolean> {
-    const wasRemoved = await Model.remove(Article.collectionName, {
-      url
-    });
-
-    return wasRemoved;
+  public static delete(user: User, url: string): Promise<boolean> {
+    return Model.remove(Article.collectionName, { userId: user.id, url });
   }
 
   public static delete_all(): Promise<boolean> {

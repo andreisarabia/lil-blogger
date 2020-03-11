@@ -14,7 +14,7 @@ export interface UserProps extends BaseProps {
 type UserPropsKey = keyof UserProps;
 
 const MIN_PASSWORD_LENGTH = 15;
-const MAX_PASSWORD_LENGTH = 45;
+const MAX_PASSWORD_LENGTH = 50;
 const SALT_ROUNDS = 10;
 
 export default class User extends Model {
@@ -41,7 +41,9 @@ export default class User extends Model {
 
     for (const key of keys) {
       if (!(key in this.props)) continue;
+
       const value = propsToUpdate[key];
+
       if (value !== undefined) {
         this.update_props(key, value);
         updatedProps[key] = value;
@@ -76,7 +78,12 @@ export default class User extends Model {
     user: User,
     supposedPassword: string
   ): Promise<boolean> {
-    return bcrypt.compare(supposedPassword, user.password);
+    const isMatchingPassword = await bcrypt.compare(
+      supposedPassword,
+      user.password
+    );
+
+    return isMatchingPassword;
   }
 
   public static async verify_user_data(

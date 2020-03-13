@@ -1,5 +1,4 @@
 import striptags from 'striptags';
-import { JSDOM } from 'jsdom';
 import Mercury, { ParseResult } from '@postlight/mercury-parser';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +6,8 @@ import { ObjectID } from 'mongodb';
 
 import Model, { BaseProps } from './Model';
 import User from './User';
-import { sanitize, remove_extra_whitespace } from '../util';
+import { extract_slug, extract_canonical_url } from '../util/url';
+import { sanitize } from '../util/sanitizer';
 import { ALLOWED_HTML_TAGS } from './constants';
 
 export interface ArticleProps extends BaseProps, ParseResult {
@@ -20,7 +20,27 @@ export interface ArticleProps extends BaseProps, ParseResult {
 
 type ArticlePropsKey = keyof ArticleProps;
 
-type ArticleUrlExtractionData = Omit<ArticleProps, 'uniqueId'>;
+type ParsedArticleResult = Omit<ArticleProps, 'uniqueId'>;
+
+const extract_url_data = async (url: string): Promise<ParsedArticleResult> => {
+  const { data: dirtyHtml }: { data: string } = await axios.get(url);
+  const html = sanitize(dirtyHtml, { ADD_TAGS: ['link'] });
+
+  const parsedResult: ParseResult = await Mercury.parse(url, {
+    html: Buffer.from(html, 'utf-8')
+  });
+  const createdOn = new Date().toISOString();
+  const canonicalUrl = extract_canonical_url(html) || url;
+  const slug = extract_slug(url);
+
+  return {
+    ...parsedResult,
+    content: striptags(parsedResult.content, ALLOWED_HTML_TAGS),
+    createdOn,
+    canonicalUrl,
+    slug
+  } as ParsedArticleResult;
+};
 
 export default class Article extends Model {
   private static readonly collectionName = 'articles';
@@ -43,11 +63,9 @@ export default class Article extends Model {
   }
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
-    const keys = Object.keys(propsToUpdate) as ArticlePropsKey[];
-
     let updatedProps: { [key: string]: any } = {};
 
-    for (const key of keys) {
+    for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
       if (!(key in this.props)) continue;
 
       const value = propsToUpdate[key];
@@ -56,7 +74,7 @@ export default class Article extends Model {
 
       if (key === 'canonicalUrl') {
         // we want to get the original location's refreshed content
-        const newProps = await Article.extract_url_data(value as string);
+        const newProps = await extract_url_data(value as string);
 
         updatedProps = { ...updatedProps, ...newProps };
         this.props = { ...this.props, ...updatedProps };
@@ -74,20 +92,17 @@ export default class Article extends Model {
     );
   }
 
-  public static async create({
-    url,
-    userId
-  }: Pick<ArticleProps, 'url' | 'userId'>): Promise<Article> {
-    const cleanData = await Article.extract_url_data(url);
+  public static async create(url: string, user: User): Promise<Article> {
+    const cleanData = await extract_url_data(url);
     const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
 
-    return new Article({ ...cleanData, uniqueId, userId });
+    return new Article({ ...cleanData, uniqueId, userId: user.id });
   }
 
-  public static async find(user: User): Promise<Article> {
+  public static async find(criteria: Partial<ArticleProps>): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,
-      criteria: { userId: user.id },
+      criteria: criteria,
       limit: 1
     })) as ArticleProps;
 
@@ -103,7 +118,7 @@ export default class Article extends Model {
       limit: 0
     })) as ArticleProps[];
 
-    return articlesData ? articlesData.map(data => new Article(data)) : null;
+    return articlesData ? articlesData.map(data => new Article(data)) : [];
   }
 
   public static delete(user: User, url: string): Promise<boolean> {
@@ -112,40 +127,5 @@ export default class Article extends Model {
 
   public static delete_all(): Promise<boolean> {
     return Model.drop_all(Article.collectionName);
-  }
-
-  private static async extract_url_data(
-    url: string
-  ): Promise<ArticleUrlExtractionData> {
-    const { data: dirtyHtml }: { data: string } = await axios.get(url);
-    const html = sanitize(remove_extra_whitespace(dirtyHtml), {
-      ADD_TAGS: ['link']
-    });
-    const { content, ...restOfResult }: ParseResult = await Mercury.parse(url, {
-      html: Buffer.from(html, 'utf-8')
-    });
-
-    return {
-      ...restOfResult,
-      content: striptags(content, ALLOWED_HTML_TAGS),
-      createdOn: new Date().toISOString(),
-      canonicalUrl: Article.extract_canonical_url(html) || url,
-      slug: Article.extract_slug(url)
-    } as ArticleUrlExtractionData;
-  }
-
-  private static extract_canonical_url(html: string): string {
-    const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
-
-    for (const tag of linkTags) if (tag.rel === 'canonical') return tag.href;
-
-    return null;
-  }
-
-  private static extract_slug(url: string): string {
-    const { pathname } = new URL(url); // easier to parse URLs with queries
-    const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
-
-    return lastPartOfUrl;
   }
 }

@@ -34,7 +34,7 @@ export default class AuthRouter extends Router {
         'Could not validate the email and password combination. Please try again.';
 
       ctx.status = 400;
-      ctx.body = { error, msg: '' };
+      ctx.body = { error, msg: null };
     }
   }
 
@@ -45,7 +45,7 @@ export default class AuthRouter extends Router {
     if (errors) {
       ctx.status = 400;
 
-      ctx.body = { errors, msg: '' };
+      ctx.body = { errors, msg: null };
     } else {
       const cookie = uuidv4();
       const user = await User.create({ email, password, cookie });

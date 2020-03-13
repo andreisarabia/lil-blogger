@@ -36,10 +36,9 @@ export default class User extends Model {
   }
 
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
-    const keys = Object.keys(propsToUpdate) as UserPropsKey[];
     const updatedProps: { [key: string]: any } = {};
 
-    for (const key of keys) {
+    for (const key of Object.keys(propsToUpdate) as UserPropsKey[]) {
       if (!(key in this.props)) continue;
 
       const value = propsToUpdate[key];

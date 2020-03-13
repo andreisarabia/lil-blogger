@@ -12,7 +12,7 @@ import Database from './Database';
 import User from '../models/User';
 import { Router, AuthRouter, ArticleRouter } from '../routes';
 import config from '../config';
-import { is_url } from '../util/fn';
+import { is_url } from '../util/url';
 
 type ContentSecurityPolicy = {
   [k: string]: string[];

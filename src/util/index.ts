@@ -1,4 +1,4 @@
 export * from './url';
-export * from './sanitizer';
+export * from './sanitizers';
 export * from './sorters';
 export * from './validators';

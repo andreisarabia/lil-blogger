@@ -7,7 +7,7 @@ import { ObjectID } from 'mongodb';
 import Model, { BaseProps } from './Model';
 import User from './User';
 import { extract_slug, extract_canonical_url } from '../util/url';
-import { sanitize } from '../util/sanitizer';
+import { sanitize } from '../util/sanitizers';
 import { ALLOWED_HTML_TAGS } from './constants';
 
 export interface ArticleProps extends BaseProps, ParseResult {
@@ -25,17 +25,17 @@ type ParsedArticleResult = Omit<ArticleProps, 'uniqueId'>;
 const extract_url_data = async (url: string): Promise<ParsedArticleResult> => {
   const { data: dirtyHtml }: { data: string } = await axios.get(url);
   const html = sanitize(dirtyHtml, { ADD_TAGS: ['link'] });
-
   const parsedResult: ParseResult = await Mercury.parse(url, {
     html: Buffer.from(html, 'utf-8')
   });
+  parsedResult.content = striptags(parsedResult.content, ALLOWED_HTML_TAGS);
+
   const createdOn = new Date().toISOString();
   const canonicalUrl = extract_canonical_url(html) || url;
   const slug = extract_slug(url);
 
   return {
     ...parsedResult,
-    content: striptags(parsedResult.content, ALLOWED_HTML_TAGS),
     createdOn,
     canonicalUrl,
     slug

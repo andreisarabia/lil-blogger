@@ -2,7 +2,7 @@ import Koa from 'koa';
 import KoaRouter from 'koa-router';
 
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
-const defaultApiHeader = { 'Content-Type': 'application/json' };
+
 const is_authenticated = (ctx: Koa.ParameterizedContext) =>
   Boolean(ctx.cookies.get('_app_auth'));
 
@@ -24,6 +24,8 @@ export default class Router {
     prefix: string,
     { requiresAuth } = { requiresAuth: true }
   ) {
+    const defaultApiHeader = { 'Content-Type': 'application/json' };
+
     this.instance = new KoaRouter({ prefix: `/api${prefix}` });
 
     this.instance.use(async (ctx, next) => {

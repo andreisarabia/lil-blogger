@@ -19,7 +19,8 @@ export default class AuthRouter extends Router {
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { email = '', password } = ctx.request.body as AccountLoginParameters;
+    const { email = '', password = '' } = ctx.request
+      .body as AccountLoginParameters;
     const user = await User.find({ email });
 
     if (await User.are_valid_credentials(user, password)) {

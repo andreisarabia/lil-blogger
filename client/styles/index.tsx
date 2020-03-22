@@ -56,3 +56,40 @@ export const ArticleListSection = styled.section`
     border-bottom: 1px solid rebeccapurple;
   }
 `;
+
+export const LoginForm = styled.main`
+  text-align: center;
+  top: 30%;
+  position: sticky;
+
+  section#login,
+  section#register {
+    > h2 {
+      font-size: 2.5rem;
+    }
+
+    > div#login-info,
+    > div#registration-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      > input {
+        width: 25%;
+        font-size: 1.1rem;
+        margin: 0.5rem;
+      }
+
+      > button {
+        border-top: 1px solid rebeccapurple;
+        border-bottom: 1px solid rebeccapurple;
+        border-left: none;
+        border-right: none;
+        background: inherit;
+        font-size: 1.5rem;
+        margin-top: 2rem;
+        padding: 0.5rem;
+      }
+    }
+  }
+`;

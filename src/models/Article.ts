@@ -43,7 +43,7 @@ const extract_url_data = async (url: string): Promise<ParsedArticleResult> => {
 };
 
 export default class Article extends Model {
-  private static readonly collectionName = 'articles';
+  protected static readonly collectionName = 'articles';
 
   protected constructor(protected props: ArticleProps) {
     super(props, Article.collectionName);
@@ -123,9 +123,5 @@ export default class Article extends Model {
 
   public static delete(user: User, url: string): Promise<boolean> {
     return Model.remove(Article.collectionName, { userId: user.id, url });
-  }
-
-  public static delete_all(): Promise<boolean> {
-    return Model.drop_all(Article.collectionName);
   }
 }

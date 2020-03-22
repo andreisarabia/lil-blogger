@@ -14,6 +14,7 @@ export interface BaseProps {
 
 export default class Model {
   private db: Database;
+  protected static readonly collectionName: string;
 
   protected constructor(protected props: BaseProps, collection: string) {
     this.props = { ...props };
@@ -52,14 +53,14 @@ export default class Model {
     return Database.instance(collection).find(criteria, { limit });
   }
 
-  protected static drop_all(collection: string): Promise<boolean> {
-    return Database.instance(collection).drop_collection();
-  }
-
   protected static remove(
     collection: string,
     criteria: FilterQuery<object>
   ): Promise<boolean> {
     return Database.instance(collection).delete(criteria);
+  }
+
+  public static delete_all(): Promise<boolean> {
+    return Database.instance(this.collectionName).drop_collection();
   }
 }

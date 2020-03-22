@@ -3,6 +3,8 @@ import Router from 'next/router';
 import axios from 'axios';
 import Head from 'next/head';
 
+import { LoginForm } from '../styles';
+
 const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 45;
 
@@ -13,7 +15,8 @@ export default class LoginPage extends React.Component {
     registerEmail: '',
     registerPassword: '',
     loginError: '',
-    registrationErrors: []
+    registrationErrors: [],
+    showLoginForm: true
   };
 
   handle_login = async () => {
@@ -48,62 +51,127 @@ export default class LoginPage extends React.Component {
     }
   };
 
+  check_second_password = (secondPwd: string) => {
+    if (this.state.registerPassword !== secondPwd) {
+      console.error('Wrong!');
+    }
+  };
+
   render = () => {
     return (
-      <div>
+      <LoginForm>
         <Head>Login</Head>
 
-        <h2>Login</h2>
-        <input
-          type='email'
-          name='loginEmail'
-          onChange={e => this.setState({ loginEmail: e.target.value.trim() })}
-        />
-        <input
-          type='password'
-          name='loginPassword'
-          minLength={MIN_PASSWORD_LENGTH}
-          maxLength={MAX_PASSWORD_LENGTH}
-          onChange={e =>
-            this.setState({ loginPassword: e.target.value.trim() })
-          }
-        />
-        <button type='submit' onClick={this.handle_login}>
-          Submit
-        </button>
+        <section
+          id='login'
+          style={{ display: this.state.showLoginForm ? 'inherit' : 'none' }}
+        >
+          <h2>Login</h2>
 
-        {this.state.loginError && <p>{this.state.loginError}</p>}
+          <div id='login-info'>
+            <input
+              type='email'
+              name='loginEmail'
+              placeholder='Email'
+              onChange={e =>
+                this.setState({ loginEmail: e.target.value.trim() })
+              }
+            />
+            <input
+              type='password'
+              name='loginPassword'
+              placeholder='Password'
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
+              onChange={e =>
+                this.setState({ loginPassword: e.target.value.trim() })
+              }
+            />
 
-        <h2>Create an account</h2>
+            <p>
+              New? Click
+              <span
+                style={{ color: 'blue', cursor: 'pointer' }}
+                onClick={() => {
+                  this.setState({ showLoginForm: false });
+                }}
+              >
+                {' '}
+                here
+              </span>{' '}
+              to register
+            </p>
 
-        <input
-          type='email'
-          name='registerEmail'
-          onChange={e =>
-            this.setState({ registerEmail: e.target.value.trim() })
-          }
-        />
-        <input
-          type='password'
-          name='registerPassword'
-          minLength={MIN_PASSWORD_LENGTH}
-          maxLength={MAX_PASSWORD_LENGTH}
-          onChange={e =>
-            this.setState({ registerPassword: e.target.value.trim() })
-          }
-        />
-        <button type='submit' onClick={this.handle_create_account}>
-          Submit
-        </button>
+            <button type='submit' onClick={this.handle_login}>
+              Submit
+            </button>
 
-        {this.state.registrationErrors.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {this.state.registrationErrors.map(err => (
-              <p>{err}</p>
-            ))}
+            {this.state.loginError && <p>{this.state.loginError}</p>}
           </div>
-        )}
-      </div>
+        </section>
+
+        <section
+          id='register'
+          style={{ display: this.state.showLoginForm ? 'none' : 'inherit' }}
+        >
+          <h2>Create an account</h2>
+
+          <div id='registration-info'>
+            <input
+              type='email'
+              name='registerEmail'
+              placeholder='Email'
+              onChange={e =>
+                this.setState({ registerEmail: e.target.value.trim() })
+              }
+            />
+            <input
+              type='password'
+              name='registerPassword'
+              placeholder='Password'
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
+              onChange={e =>
+                this.setState({ registerPassword: e.target.value.trim() })
+              }
+            />
+            <input
+              type='password'
+              name='loginPassword2'
+              placeholder='Retype your password'
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
+              onChange={e => this.check_second_password(e.target.value)}
+              onBlur={e => this.check_second_password(e.target.value)}
+            />
+
+            <p>
+              Click{' '}
+              <span
+                style={{ color: 'blue', cursor: 'pointer' }}
+                onClick={() => {
+                  this.setState({ showLoginForm: true });
+                }}
+              >
+                here
+              </span>{' '}
+              to get back to the login form
+            </p>
+
+            <button type='submit' onClick={this.handle_create_account}>
+              Submit
+            </button>
+          </div>
+
+          {this.state.registrationErrors.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {this.state.registrationErrors.map(err => (
+                <p>{err}</p>
+              ))}
+            </div>
+          )}
+        </section>
+      </LoginForm>
     );
   };
 }

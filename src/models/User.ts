@@ -18,7 +18,7 @@ const MAX_PASSWORD_LENGTH = 50;
 const SALT_ROUNDS = 10;
 
 export default class User extends Model {
-  private static readonly collectionName = 'users';
+  protected static readonly collectionName = 'users';
 
   protected constructor(protected props: UserProps) {
     super(props, User.collectionName);

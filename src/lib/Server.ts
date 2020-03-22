@@ -116,10 +116,9 @@ export default class Server {
       .use(koaCompress())
       .use(async (ctx, next) => {
         const start = Date.now();
+        const { path } = ctx;
 
         ctx.set(defaultApiHeaders);
-
-        const { path } = ctx;
 
         let viewsMsg = '';
 
@@ -143,9 +142,11 @@ export default class Server {
               await ctx.session.manuallyCommit();
             }
 
-            ctx.session.user = await User.find({
-              cookie: ctx.cookies.get(Router.authCookieName)
-            });
+            if (!ctx.session.user) {
+              ctx.session.user = await User.find({
+                cookie: ctx.cookies.get(Router.authCookieName)
+              });
+            }
 
             await next();
           } else {
@@ -153,20 +154,14 @@ export default class Server {
           }
         } finally {
           const xResponseTime = `${Date.now() - start}ms`;
+          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${ctx.header['user-agent']} ${viewsMsg}`;
 
-          if (config.IS_DEV && !ctx.headerSent)
-            ctx.set('X-Response-Time', xResponseTime);
+          if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
 
-          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${viewsMsg}`;
-
-          let chalkLog: string;
-
-          if (ctx.status >= 400) chalkLog = chalk.red(logMsg);
-          else if (ctx.status >= 300) chalkLog = chalk.inverse(logMsg);
-          else if (is_static_file(path)) chalkLog = chalk.cyan(logMsg);
-          else chalkLog = chalk.green(logMsg);
-
-          log(chalkLog);
+          if (ctx.status >= 400) log(chalk.red(logMsg));
+          else if (ctx.status >= 300) log(chalk.inverse(logMsg));
+          else if (is_static_file(path)) log(chalk.cyan(logMsg));
+          else log(chalk.green(logMsg));
         }
       });
 

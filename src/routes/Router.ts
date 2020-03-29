@@ -9,7 +9,6 @@ const is_authenticated = (ctx: Koa.ParameterizedContext) =>
 export default class Router {
   public static readonly authCookieName = '_app_auth';
 
-  public readonly sessionName?: string;
   protected instance: KoaRouter;
   protected allPathsWithMethods = new Map<string, string[]>();
   protected readonly sessionConfig = {

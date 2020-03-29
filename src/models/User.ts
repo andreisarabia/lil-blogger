@@ -1,15 +1,10 @@
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
-import Model, { BaseProps } from './Model';
-import { is_email, is_safe_password } from '../util';
+import Model from './Model';
+import { is_email, is_safe_password } from '../util/validators';
 
-export interface UserProps extends BaseProps {
-  email: string;
-  password: string;
-  uniqueId: string;
-  cookie: string;
-}
+import { UserProps } from '../typings';
 
 type UserPropsKey = keyof UserProps;
 
@@ -63,7 +58,9 @@ export default class User extends Model {
     return new User({ email, password: hash, uniqueId, cookie });
   }
 
-  public static async find(searchProps: Partial<UserProps>): Promise<User> {
+  public static async find(
+    searchProps: Partial<UserProps>
+  ): Promise<User | null> {
     const userData = (await Model.search({
       collection: User.collectionName,
       criteria: searchProps,
@@ -73,16 +70,17 @@ export default class User extends Model {
     return userData ? new User(userData) : null;
   }
 
-  public static async are_valid_credentials(
-    user: User,
-    supposedPassword: string
-  ): Promise<boolean> {
-    const isMatchingPassword = await bcrypt.compare(
-      supposedPassword,
-      user.password
+  public static async validate_credentials(
+    email: string,
+    password: string
+  ): Promise<User | null> {
+    const user = await this.find({ email });
+    const isValidPassword = await bcrypt.compare(
+      password,
+      user ? user.password : ''
     );
 
-    return isMatchingPassword;
+    return isValidPassword ? user : null;
   }
 
   public static async verify_user_data(
@@ -91,7 +89,7 @@ export default class User extends Model {
   ): Promise<string[]> {
     const errors: string[] = [];
 
-    if (!is_email(email) || (await User.exists(email)))
+    if (!is_email(email) || (await this.exists(email)))
       errors.push('Email is not valid.');
 
     if (password.length < MIN_PASSWORD_LENGTH)
@@ -113,7 +111,7 @@ export default class User extends Model {
 
   private static async exists(email: string): Promise<boolean> {
     const userData = (await Model.search({
-      collection: User.collectionName,
+      collection: this.collectionName,
       criteria: { email },
       limit: 1
     })) as UserProps;

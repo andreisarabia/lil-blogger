@@ -1,46 +1,12 @@
-import striptags from 'striptags';
-import Mercury, { ParseResult } from '@postlight/mercury-parser';
-import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import { ObjectID } from 'mongodb';
 
-import Model, { BaseProps } from './Model';
+import Model from './Model';
 import User from './User';
-import { extract_slug, extract_canonical_url } from '../util/url';
-import { sanitize } from '../util/sanitizers';
-import { ALLOWED_HTML_TAGS } from './constants';
+import { extract_url_data } from '../util/parser';
 
-export interface ArticleProps extends BaseProps, ParseResult {
-  canonicalUrl: string;
-  createdOn: string; // UTC
-  uniqueId: string;
-  slug: string;
-  userId: ObjectID;
-}
+import { ArticleProps } from '../typings';
 
 type ArticlePropsKey = keyof ArticleProps;
-
-type ParsedArticleResult = Omit<ArticleProps, 'uniqueId'>;
-
-const extract_url_data = async (url: string): Promise<ParsedArticleResult> => {
-  const { data: dirtyHtml }: { data: string } = await axios.get(url);
-  const html = sanitize(dirtyHtml, { ADD_TAGS: ['link'] });
-  const parsedResult: ParseResult = await Mercury.parse(url, {
-    html: Buffer.from(html, 'utf-8')
-  });
-  parsedResult.content = striptags(parsedResult.content, ALLOWED_HTML_TAGS);
-
-  const createdOn = new Date().toISOString();
-  const canonicalUrl = extract_canonical_url(html) || url;
-  const slug = extract_slug(url);
-
-  return {
-    ...parsedResult,
-    createdOn,
-    canonicalUrl,
-    slug
-  } as ParsedArticleResult;
-};
 
 export default class Article extends Model {
   protected static readonly collectionName = 'articles';
@@ -53,6 +19,10 @@ export default class Article extends Model {
     const { _id, userId, ...publicProps } = this.props;
 
     return publicProps;
+  }
+
+  public get createdOn(): string {
+    return this.props.createdOn;
   }
 
   private update_props<Key extends ArticlePropsKey>(
@@ -99,10 +69,12 @@ export default class Article extends Model {
     return new Article({ ...cleanData, uniqueId, userId: user.id });
   }
 
-  public static async find(criteria: Partial<ArticleProps>): Promise<Article> {
+  public static async find(
+    criteria: Partial<ArticleProps> = {}
+  ): Promise<Article> {
     const articleData = (await Model.search({
       collection: Article.collectionName,
-      criteria: criteria,
+      criteria,
       limit: 1
     })) as ArticleProps;
 
@@ -110,15 +82,15 @@ export default class Article extends Model {
   }
 
   public static async find_all(
-    searchProps: Partial<ArticleProps> = {}
+    criteria: Partial<ArticleProps> = {}
   ): Promise<Article[]> {
     const articlesData = (await Model.search({
       collection: Article.collectionName,
-      criteria: searchProps,
+      criteria,
       limit: 0
     })) as ArticleProps[];
 
-    return articlesData ? articlesData.map(data => new Article(data)) : [];
+    return articlesData ? articlesData.map(data => new Article(data)) : null;
   }
 
   public static delete(user: User, url: string): Promise<boolean> {

@@ -2,15 +2,13 @@ import { FilterQuery, ObjectID } from 'mongodb';
 
 import Database, { InsertResult } from '../lib/Database';
 
+import { BaseProps } from '../typings';
+
 type SearchOptions = {
   collection: string;
   criteria: object;
   limit?: number;
 };
-
-export interface BaseProps {
-  _id?: ObjectID;
-}
 
 export default class Model {
   private db: Database;
@@ -25,14 +23,13 @@ export default class Model {
     return this.props._id;
   }
 
-  public async save(): Promise<this> {
+  public async save(): Promise<void> {
     const [error, results] = await this.db.insert(this.props);
     if (error) throw error;
 
-    const { _id, ...props } = results.ops[0] as InsertResult;
-    this.props = props;
+    const { _id, ...props } = results.ops[0] as BaseProps;
 
-    return this;
+    this.props = { ...this.props, ...props };
   }
 
   protected static update_one(

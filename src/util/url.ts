@@ -1,5 +1,3 @@
-import { JSDOM } from 'jsdom';
-
 export const is_url = (url: string): boolean => {
   try {
     return Boolean(new URL(url));
@@ -13,12 +11,4 @@ export const extract_slug = (url: string): string => {
   const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
 
   return lastPartOfUrl;
-};
-
-export const extract_canonical_url = (html: string): string => {
-  const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
-
-  for (const tag of linkTags) if (tag.rel === 'canonical') return tag.href;
-
-  return null;
 };

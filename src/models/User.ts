@@ -38,10 +38,10 @@ export default class User extends Model {
 
       const value = propsToUpdate[key];
 
-      if (value !== undefined) {
-        this.update_props(key, value);
-        updatedProps[key] = value;
-      }
+      if (value === undefined) continue;
+
+      this.update_props(key, value);
+      updatedProps[key] = value;
     }
 
     await Model.update_one(User.collectionName, { _id: this.id }, updatedProps);
@@ -61,8 +61,8 @@ export default class User extends Model {
   public static async find(
     searchProps: Partial<UserProps>
   ): Promise<User | null> {
-    const userData = (await Model.search({
-      collection: User.collectionName,
+    const userData = (await super.search({
+      collection: this.collectionName,
       criteria: searchProps,
       limit: 1
     })) as UserProps;
@@ -110,7 +110,7 @@ export default class User extends Model {
   }
 
   private static async exists(email: string): Promise<boolean> {
-    const userData = (await Model.search({
+    const userData = (await super.search({
       collection: this.collectionName,
       criteria: { email },
       limit: 1

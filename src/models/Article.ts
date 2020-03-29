@@ -72,8 +72,8 @@ export default class Article extends Model {
   public static async find(
     criteria: Partial<ArticleProps> = {}
   ): Promise<Article> {
-    const articleData = (await Model.search({
-      collection: Article.collectionName,
+    const articleData = (await super.search({
+      collection: this.collectionName,
       criteria,
       limit: 1
     })) as ArticleProps;
@@ -84,8 +84,8 @@ export default class Article extends Model {
   public static async find_all(
     criteria: Partial<ArticleProps> = {}
   ): Promise<Article[]> {
-    const articlesData = (await Model.search({
-      collection: Article.collectionName,
+    const articlesData = (await super.search({
+      collection: this.collectionName,
       criteria,
       limit: 0
     })) as ArticleProps[];
@@ -94,6 +94,6 @@ export default class Article extends Model {
   }
 
   public static delete(user: User, url: string): Promise<boolean> {
-    return Model.remove(Article.collectionName, { userId: user.id, url });
+    return super.remove(this.collectionName, { userId: user.id, url });
   }
 }

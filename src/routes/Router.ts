@@ -3,9 +3,6 @@ import KoaRouter from 'koa-router';
 
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
 
-const is_authenticated = (ctx: Koa.ParameterizedContext) =>
-  Boolean(ctx.cookies.get('_app_auth'));
-
 export default class Router {
   public static readonly authCookieName = '_app_auth';
 
@@ -16,23 +13,21 @@ export default class Router {
     maxAge: ONE_DAY_IN_MS,
     overwrite: true,
     signed: true,
-    httpOnly: true
+    httpOnly: true,
   };
 
   protected constructor(
     prefix: string,
     { requiresAuth } = { requiresAuth: true }
   ) {
-    const defaultApiHeader = { 'Content-Type': 'application/json' };
-
     this.instance = new KoaRouter({ prefix: `/api${prefix}` });
 
     this.instance.use(async (ctx, next) => {
-      if (requiresAuth && !is_authenticated(ctx)) {
+      if (requiresAuth && !Router.is_authenticated(ctx)) {
         ctx.throw(400, 'Not allowed.');
       }
 
-      ctx.set(defaultApiHeader);
+      ctx.set({ 'Content-Type': 'application/json' });
 
       await next();
     });
@@ -53,5 +48,9 @@ export default class Router {
     });
 
     return new Map(this.allPathsWithMethods);
+  }
+
+  public static is_authenticated(ctx: Koa.ParameterizedContext) {
+    return Boolean(ctx.cookies.get(Router.authCookieName));
   }
 }

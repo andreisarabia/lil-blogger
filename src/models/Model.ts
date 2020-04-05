@@ -1,6 +1,6 @@
 import { FilterQuery, ObjectID } from 'mongodb';
 
-import Database, { InsertResult } from '../lib/Database';
+import Database, { InsertResult, QueryResults } from '../lib/Database';
 
 import { BaseProps } from '../typings';
 
@@ -20,16 +20,14 @@ export default class Model {
   }
 
   public get id(): ObjectID {
-    return this.props._id;
+    return this.props._id as ObjectID;
   }
 
   public async save(): Promise<void> {
     const [error, results] = await this.db.insert(this.props);
-    if (error) throw error;
 
-    const { _id, ...props } = results.ops[0] as BaseProps;
-
-    this.props = { ...this.props, ...props };
+    if (results) this.props = { ...results.ops[0] };
+    else throw error;
   }
 
   protected static update_one(
@@ -38,16 +36,23 @@ export default class Model {
     propsToUpdate: object
   ): Promise<boolean> {
     return Database.instance(collection).update_one(searchProps, {
-      $set: propsToUpdate
+      $set: propsToUpdate,
     });
+  }
+
+  protected static search_one({
+    collection,
+    criteria,
+  }: SearchOptions): Promise<object | null> {
+    return Database.instance(collection).find(criteria, { limit: 1 });
   }
 
   protected static search({
     collection,
     criteria,
-    limit
-  }: SearchOptions): Promise<object | object[]> {
-    return Database.instance(collection).find(criteria, { limit });
+    limit,
+  }: SearchOptions): Promise<object[] | null> {
+    return Database.instance(collection).find(criteria, { limit }) as Promise<object[] | null>;
   }
 
   protected static remove(

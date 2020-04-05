@@ -50,7 +50,7 @@ export default class User extends Model {
   public static async create({
     email,
     password,
-    cookie
+    cookie,
   }: Omit<UserProps, 'uniqueId'>): Promise<User> {
     const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -58,35 +58,32 @@ export default class User extends Model {
     return new User({ email, password: hash, uniqueId, cookie });
   }
 
-  public static async find(
-    searchProps: Partial<UserProps>
-  ): Promise<User | null> {
-    const userData = (await super.search({
+  public static async find(criteria: Partial<UserProps>): Promise<User | null> {
+    const userData = await super.search_one({
       collection: this.collectionName,
-      criteria: searchProps,
-      limit: 1
-    })) as UserProps;
+      criteria,
+    });
 
-    return userData ? new User(userData) : null;
+    return userData ? new User(userData as UserProps) : null;
   }
 
   public static async validate_credentials(
     email: string,
     password: string
   ): Promise<User | null> {
-    const user = await this.find({ email });
+    const user: User | null = await this.find({ email });
     const isValidPassword = await bcrypt.compare(
       password,
       user ? user.password : ''
     );
 
-    return isValidPassword ? user : null;
+    return user && isValidPassword ? user : null;
   }
 
   public static async verify_user_data(
     email: string,
     password: string
-  ): Promise<string[]> {
+  ): Promise<string[] | null> {
     const errors: string[] = [];
 
     if (!is_email(email) || (await this.exists(email)))
@@ -110,12 +107,12 @@ export default class User extends Model {
   }
 
   private static async exists(email: string): Promise<boolean> {
-    const userData = (await super.search({
+    const userData = await super.search({
       collection: this.collectionName,
       criteria: { email },
-      limit: 1
-    })) as UserProps;
+      limit: 1,
+    });
 
-    return Boolean(userData);
+    return Boolean(userData as UserProps | null);
   }
 }

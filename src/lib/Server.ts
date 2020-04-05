@@ -4,7 +4,6 @@ import { UrlWithParsedQuery } from 'url';
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import koaSession from 'koa-session';
-import koaCompress from 'koa-compress';
 import nextApp from 'next';
 import chalk from 'chalk';
 
@@ -26,18 +25,19 @@ const FILE_TYPES = ['_next', '.ico', '.json'];
 const has_session = (ctx: Koa.ParameterizedContext) =>
   Boolean(ctx.cookies.get('__app'));
 
-const is_authenticated = (ctx: Koa.ParameterizedContext) =>
-  Boolean(ctx.cookies.get(Router.authCookieName));
-
 const is_static_file = (path: string) =>
-  FILE_TYPES.some(type => path.includes(type));
+  FILE_TYPES.some((type) => path.includes(type));
 
-let singleton: Server = null;
+const routers = [new AuthRouter(), new ArticleRouter()]; // api
 
 export default class Server {
+  private static singleton = new Server();
+
   private app = new Koa();
-  private readonly appPort = parseInt(process.env.APP_PORT, 10) || 3000;
-  private apiPathsMethodsMap = new Map<string, string[]>();
+  private readonly appPort =
+    parseInt(process.env.APP_PORT as string, 10) || 3000;
+
+  private apiPathsMap = new Map<string, string[]>();
   private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
 
   private clientAppHandler: (
@@ -53,8 +53,8 @@ export default class Server {
       'self',
       'unsafe-inline',
       'https://fonts.googleapis.com',
-      'https://fonts.gstatic.com'
-    ]
+      'https://fonts.gstatic.com',
+    ],
   };
 
   private readonly sessionConfig = {
@@ -63,12 +63,12 @@ export default class Server {
     overwrite: true,
     signed: true,
     httpOnly: true,
-    autoCommit: false
+    autoCommit: false,
   };
 
-  private stats: { [k: string]: number } = {
+  private stats: { [k: string]: number | null } = {
     dbStartup: null,
-    clientStartup: null
+    clientStartup: null,
   };
 
   private constructor() {}
@@ -77,7 +77,7 @@ export default class Server {
     let header = '';
 
     Object.entries(this.csp).forEach(([src, directives]) => {
-      const preppedDirectives = directives.map(directive =>
+      const preppedDirectives = directives.map((directive) =>
         is_url(directive) ? directive : `'${directive}'`
       );
 
@@ -105,7 +105,7 @@ export default class Server {
     const defaultApiHeaders = {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'deny',
-      'X-XSS-Protection': '1; mode=block'
+      'X-XSS-Protection': '1; mode=block',
     };
 
     this.app.keys = ['_app'];
@@ -113,7 +113,6 @@ export default class Server {
     this.app
       .use(koaSession(this.sessionConfig, this.app))
       .use(koaBody({ json: true }))
-      .use(koaCompress())
       .use(async (ctx, next) => {
         const start = Date.now();
         const { path } = ctx;
@@ -133,7 +132,7 @@ export default class Server {
 
             await ctx.session.manuallyCommit();
             await next();
-          } else if (has_session(ctx) && is_authenticated(ctx)) {
+          } else if (has_session(ctx) && Router.is_authenticated(ctx)) {
             if (!path.startsWith('/api')) {
               // log only non-API calls as a `view`
               ctx.session.views = ctx.session.views + 1 || 1;
@@ -144,7 +143,7 @@ export default class Server {
 
             if (!ctx.session.user) {
               ctx.session.user = await User.find({
-                cookie: ctx.cookies.get(Router.authCookieName)
+                cookie: ctx.cookies.get(Router.authCookieName),
               });
             }
 
@@ -154,7 +153,8 @@ export default class Server {
           }
         } finally {
           const xResponseTime = `${Date.now() - start}ms`;
-          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${ctx.header['user-agent']} ${viewsMsg}`;
+          const ua = ctx.header['user-agent'];
+          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${ua} ${viewsMsg}`;
 
           if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
 
@@ -165,24 +165,20 @@ export default class Server {
         }
       });
 
-    const routers = [new AuthRouter(), new ArticleRouter()];
+    routers.forEach(({ pathsMap, middleware }) => {
+      for (const [path, methods] of pathsMap)
+        this.apiPathsMap.set(path, methods);
 
-    routers.forEach(router => {
-      for (const [path, methods] of router.pathsMap)
-        this.apiPathsMethodsMap.set(path, methods);
-
-      this.app
-        .use(router.middleware.routes())
-        .use(router.middleware.allowedMethods());
+      this.app.use(middleware.routes()).use(middleware.allowedMethods());
     });
   }
 
   private attach_client_routes() {
     const defaultClientHeaders = {
-      'Content-Security-Policy': this.cspHeader // preferably set on the server e.g. Nginx/Apache
+      'Content-Security-Policy': this.cspHeader, // preferably set on the server e.g. Nginx/Apache
     };
 
-    this.app.use(async ctx => {
+    this.app.use(async (ctx) => {
       ctx.set(defaultClientHeaders);
       await this.clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
@@ -190,23 +186,23 @@ export default class Server {
     });
   }
 
-  private attach_error_handler() {
-    this.app.on('error', err => {
+  private attach_error_handler(): void {
+    this.app.on('error', (err) => {
       log(err, new Date().toLocaleString());
     });
   }
 
-  private attach_middlewares() {
+  private attach_middlewares(): void {
     this.attach_api_routes();
     this.attach_client_routes();
     this.attach_error_handler();
   }
 
-  public async setup() {
+  public async setup(): Promise<void> {
     if (config.SHOULD_COMPILE) {
       await Promise.all([
         this.initialize_client_app(),
-        this.initialize_database()
+        this.initialize_database(),
       ]);
     } else {
       await this.initialize_database();
@@ -219,7 +215,7 @@ export default class Server {
     this.app.listen(this.appPort, () => {
       log(`Listening on port ${this.appPort}...`);
       log('Content Security Policy: ', this.cspHeader);
-      log('Registered paths:', this.apiPathsMethodsMap);
+      log('Registered paths:', this.apiPathsMap);
       log(`Took ${this.stats.dbStartup}ms to connect to the database.`);
       if (config.SHOULD_COMPILE) {
         log(`Took ${this.stats.clientStartup}ms to build client application.`);
@@ -228,8 +224,6 @@ export default class Server {
   }
 
   public static get instance(): Server {
-    singleton = singleton || new Server();
-
-    return singleton;
+    return this.singleton;
   }
 }

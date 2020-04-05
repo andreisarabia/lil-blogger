@@ -15,11 +15,11 @@ export default class ArticleRouter extends Router {
     super('/article');
 
     this.instance
-      .get('/remove-all', ctx => this.reset_app(ctx))
-      .get('/list', ctx => this.send_articles(ctx))
-      .put('/save', ctx => this.save_article(ctx))
-      .delete('/', ctx => this.delete_article(ctx))
-      .delete('/all', ctx => this.delete_all_articles(ctx));
+      .get('/remove-all', (ctx) => this.reset_app(ctx))
+      .get('/list', (ctx) => this.send_articles(ctx))
+      .put('/save', (ctx) => this.save_article(ctx))
+      .delete('/', (ctx) => this.delete_article(ctx))
+      .delete('/all', (ctx) => this.delete_all_articles(ctx));
   }
 
   private async reset_app(ctx: Koa.ParameterizedContext): Promise<void> {
@@ -28,18 +28,21 @@ export default class ArticleRouter extends Router {
     try {
       await Promise.all([Article.delete_all(), User.delete_all()]);
     } catch (error) {
+      console.error(error);
       ctx.body = error instanceof Error ? error.message : JSON.stringify(error);
     }
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
     const user: User = ctx.session.user;
-    const allArticles: Article[] = await Article.find_all({ userId: user.id });
+    const allArticles: Article[] | null = await Article.find_all({
+      userId: user.id,
+    });
 
     if (allArticles) {
       const articles = allArticles
         .sort((a, b) => sort_by_date(a.createdOn, b.createdOn))
-        .map(article => article.info);
+        .map((article) => article.info);
 
       ctx.body = { articlesList: articles };
     } else {

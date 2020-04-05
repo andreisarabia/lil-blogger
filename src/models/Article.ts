@@ -21,6 +21,9 @@ export default class Article extends Model {
     return publicProps;
   }
 
+  /**
+   * Returns timestamp in UTC string
+   */
   public get createdOn(): string {
     return this.props.createdOn;
   }
@@ -70,27 +73,28 @@ export default class Article extends Model {
   }
 
   public static async find(
-    criteria: Partial<ArticleProps> = {}
-  ): Promise<Article> {
-    const articleData = (await super.search({
+    criteria: Partial<ArticleProps>
+  ): Promise<Article | null> {
+    const articleData = await super.search_one({
       collection: this.collectionName,
       criteria,
-      limit: 1
-    })) as ArticleProps;
+    });
 
-    return articleData ? new Article(articleData) : null;
+    return articleData ? new Article(articleData as ArticleProps) : null;
   }
 
   public static async find_all(
-    criteria: Partial<ArticleProps> = {}
-  ): Promise<Article[]> {
-    const articlesData = (await super.search({
+    criteria: Partial<ArticleProps>
+  ): Promise<Article[] | null> {
+    const articlesData = await super.search({
       collection: this.collectionName,
       criteria,
-      limit: 0
-    })) as ArticleProps[];
+      limit: 0,
+    });
 
-    return articlesData ? articlesData.map(data => new Article(data)) : null;
+    return articlesData
+      ? (articlesData as ArticleProps[]).map((data) => new Article(data))
+      : null;
   }
 
   public static delete(user: User, url: string): Promise<boolean> {

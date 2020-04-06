@@ -28,7 +28,7 @@ export default class HomePage extends React.Component<
 
   componentDidMount = async () => {
     const { data } = await axios.get('http://localhost:3000/api/article/list');
-    const { articlesList } = data as { articlesList: ArticleProps[] };
+    const { articlesList } = <{ articlesList: ArticleProps[] }>data
 
     this.setState({
       articlesList,
@@ -40,7 +40,7 @@ export default class HomePage extends React.Component<
     const { data } = await axios.put('http://localhost:3000/api/article/save', {
       url: link
     });
-    const { msg, article } = data as { msg: string; article: ArticleProps };
+    const { msg, article } = <{ msg: string; article: ArticleProps }>data;
 
     if (msg === 'ok') {
       this.setState(state => ({

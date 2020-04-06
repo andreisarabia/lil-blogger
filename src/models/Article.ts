@@ -38,7 +38,7 @@ export default class Article extends Model {
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     let updatedProps: { [key: string]: any } = {};
 
-    for (const key of Object.keys(propsToUpdate) as ArticlePropsKey[]) {
+    for (const key of <ArticlePropsKey[]>Object.keys(propsToUpdate)) {
       if (!(key in this.props)) continue;
 
       const value = propsToUpdate[key];
@@ -47,7 +47,7 @@ export default class Article extends Model {
 
       if (key === 'canonicalUrl') {
         // we want to get the original location's refreshed content
-        const newProps = await extract_url_data(value as string);
+        const newProps = await extract_url_data(<string>value);
 
         updatedProps = { ...updatedProps, ...newProps };
         this.props = { ...this.props, ...updatedProps };
@@ -80,7 +80,7 @@ export default class Article extends Model {
       criteria,
     });
 
-    return articleData ? new Article(articleData as ArticleProps) : null;
+    return articleData ? new Article(<ArticleProps>articleData) : null;
   }
 
   public static async find_all(
@@ -93,7 +93,7 @@ export default class Article extends Model {
     });
 
     return articlesData
-      ? (articlesData as ArticleProps[]).map((data) => new Article(data))
+      ? (<ArticleProps[]>articlesData).map((data) => new Article(data))
       : null;
   }
 

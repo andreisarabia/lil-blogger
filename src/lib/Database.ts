@@ -34,7 +34,7 @@ export default class Database {
   private dbCollection: Collection;
 
   private constructor(collectionName: string) {
-    this.dbCollection = (Database.client as MongoClient)
+    this.dbCollection = (<MongoClient>Database.client)
       .db()
       .collection(collectionName);
   }
@@ -51,7 +51,7 @@ export default class Database {
         result = await this.dbCollection.insertOne(dataObjs);
       }
 
-      return [null, { ops: result.ops } as QueryResults];
+      return [null, <QueryResults>{ ops: result.ops }];
     } catch (error) {
       return [error, null];
     }
@@ -78,13 +78,13 @@ export default class Database {
   ): Promise<boolean> {
     const result = await this.dbCollection.updateOne(searchProps, props);
 
-    return (result as UpdateWriteOpResult).result.ok === 1;
+    return (<UpdateWriteOpResult>result).result.ok === 1;
   }
 
   public async delete(criteria: FilterQuery<object>): Promise<boolean> {
     const result = await this.dbCollection.findOneAndDelete(criteria);
 
-    return (result as FindAndModifyWriteOpResultObject<any>).ok === 1;
+    return (<FindAndModifyWriteOpResultObject<any>>result).ok === 1;
   }
 
   public async drop_collection(): Promise<boolean> {

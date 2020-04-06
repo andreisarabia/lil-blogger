@@ -51,7 +51,7 @@ export default class ArticleRouter extends Router {
   }
 
   private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url } = ctx.request.body as ParseRequestOptions;
+    const { url } = <ParseRequestOptions>ctx.request.body;
 
     if (is_url(url)) {
       const user: User = ctx.session.user;
@@ -74,7 +74,7 @@ export default class ArticleRouter extends Router {
   }
 
   private async delete_article(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url } = ctx.request.body as ParseRequestOptions;
+    const { url } = <ParseRequestOptions>ctx.request.body;
     const user: User = ctx.session.user;
     const successfullyDeleted = await Article.delete(user, url);
 

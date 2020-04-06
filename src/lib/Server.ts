@@ -34,9 +34,7 @@ export default class Server {
   private static singleton = new Server();
 
   private app = new Koa();
-  private readonly appPort =
-    parseInt(process.env.APP_PORT as string, 10) || 3000;
-
+  private readonly appPort = parseInt(<string>process.env.APP_PORT, 10) || 3000;
   private apiPathsMap = new Map<string, string[]>();
   private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
 

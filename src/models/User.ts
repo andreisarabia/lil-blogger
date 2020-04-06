@@ -33,7 +33,7 @@ export default class User extends Model {
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
     const updatedProps: { [key: string]: any } = {};
 
-    for (const key of Object.keys(propsToUpdate) as UserPropsKey[]) {
+    for (const key of <UserPropsKey[]>Object.keys(propsToUpdate)) {
       if (!(key in this.props)) continue;
 
       const value = propsToUpdate[key];
@@ -47,15 +47,14 @@ export default class User extends Model {
     await Model.update_one(User.collectionName, { _id: this.id }, updatedProps);
   }
 
-  public static async create({
-    email,
-    password,
-    cookie,
-  }: Omit<UserProps, 'uniqueId'>): Promise<User> {
-    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
+  public static async create(
+    email: string,
+    password: string,
+    cookie: string
+  ): Promise<User> {
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    return new User({ email, password: hash, uniqueId, cookie });
+    return new User({ email, cookie, password: hash, uniqueId: uuidv4() });
   }
 
   public static async find(criteria: Partial<UserProps>): Promise<User | null> {
@@ -64,7 +63,7 @@ export default class User extends Model {
       criteria,
     });
 
-    return userData ? new User(userData as UserProps) : null;
+    return userData ? new User(<UserProps>userData) : null;
   }
 
   public static async validate_credentials(
@@ -113,6 +112,6 @@ export default class User extends Model {
       limit: 1,
     });
 
-    return Boolean(userData as UserProps | null);
+    return Boolean(<UserProps | null>userData);
   }
 }

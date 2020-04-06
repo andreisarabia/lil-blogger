@@ -14,13 +14,14 @@ export default class AuthRouter extends Router {
     super('/auth', { requiresAuth: false });
 
     this.instance
-      .post('/login', ctx => this.login(ctx))
-      .post('/register', ctx => this.register(ctx));
+      .post('/login', (ctx) => this.login(ctx))
+      .post('/register', (ctx) => this.register(ctx));
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { email = '', password = '' } = ctx.request
-      .body as AccountLoginParameters;
+    const { email = '', password = '' } = <AccountLoginParameters>(
+      ctx.request.body
+    );
     const user = await User.validate_credentials(email, password);
 
     if (user) {
@@ -40,8 +41,9 @@ export default class AuthRouter extends Router {
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
-    const { email = '', password = '' } = ctx.request
-      .body as AccountLoginParameters;
+    const { email = '', password = '' } = <AccountLoginParameters>(
+      ctx.request.body
+    );
     const errors = await User.verify_user_data(email, password);
 
     if (errors) {
@@ -50,7 +52,7 @@ export default class AuthRouter extends Router {
       ctx.body = { errors, msg: null };
     } else {
       const cookie = uuidv4();
-      const user = await User.create({ email, password, cookie });
+      const user = await User.create(email, password, cookie);
 
       await user.save();
       ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);

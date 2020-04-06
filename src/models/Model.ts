@@ -20,7 +20,7 @@ export default class Model {
   }
 
   public get id(): ObjectID {
-    return this.props._id as ObjectID;
+    return <ObjectID>this.props._id;
   }
 
   public async save(): Promise<void> {
@@ -52,7 +52,9 @@ export default class Model {
     criteria,
     limit,
   }: SearchOptions): Promise<object[] | null> {
-    return Database.instance(collection).find(criteria, { limit }) as Promise<object[] | null>;
+    return <Promise<object[] | null>>(
+      Database.instance(collection).find(criteria, { limit })
+    );
   }
 
   protected static remove(

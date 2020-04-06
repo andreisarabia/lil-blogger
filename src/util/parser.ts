@@ -30,16 +30,16 @@ export const extract_url_data = async (
   });
 
   parsedResult.content = striptags(
-    parsedResult.content as string,
+    <string>parsedResult.content,
     ALLOWED_HTML_TAGS
   );
 
-  return {
+  return <ParsedArticleResult>{
     ...parsedResult,
     createdOn: new Date().toISOString(),
     canonicalUrl: extract_canonical_url(html) || url,
     slug: extract_slug(url),
     timeToFetch,
     timeToParse: Date.now() - (timeToFetch + start),
-  } as ParsedArticleResult;
+  };
 };

@@ -34,9 +34,8 @@ export default class ArticleRouter extends Router {
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
-    const user: User = ctx.session.user;
     const allArticles: Article[] | null = await Article.find_all({
-      userId: user.id,
+      userId: (<User>ctx.session.user).id,
     });
 
     if (allArticles) {
@@ -67,6 +66,7 @@ export default class ArticleRouter extends Router {
       ctx.body = { error: null, msg: 'ok', article: article.info };
     } else {
       ctx.status = 400;
+
       ctx.body = { error: 'Cannot parse given URL.', msg: null };
     }
   }
@@ -82,6 +82,7 @@ export default class ArticleRouter extends Router {
       ctx.body = { error: null, msg: 'ok' };
     } else {
       ctx.status = 400;
+
       ctx.body = { error: 'Could not delete the given URL.', msg: null };
     }
   }

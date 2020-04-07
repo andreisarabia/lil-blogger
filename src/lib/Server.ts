@@ -34,7 +34,7 @@ export default class Server {
   private static singleton = new Server();
 
   private app = new Koa();
-  private readonly appPort = parseInt(<string>process.env.APP_PORT, 10) || 3000;
+  private readonly port = parseInt(<string>process.env.APP_PORT, 10) || 3000;
   private apiPathsMap = new Map<string, string[]>();
   private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
 
@@ -210,9 +210,9 @@ export default class Server {
   }
 
   public start(): void {
-    this.app.listen(this.appPort, () => {
-      log(`Listening on port ${this.appPort}...`);
-      log('Content Security Policy: ', this.cspHeader);
+    this.app.listen(this.port, () => {
+      log(`Listening on port ${this.port}...`);
+      log('Content Security Policy: ', this.csp);
       log('Registered paths:', this.apiPathsMap);
       log(`Took ${this.stats.dbStartup}ms to connect to the database.`);
       if (config.SHOULD_COMPILE) {

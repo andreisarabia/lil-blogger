@@ -9,7 +9,17 @@ type AccountLoginParameters = {
   password: string;
 };
 
+const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
+
 export default class AuthRouter extends Router {
+  private readonly sessionConfig = {
+    key: '__app',
+    maxAge: ONE_DAY_IN_MS,
+    overwrite: true,
+    signed: true,
+    httpOnly: true,
+  };
+
   constructor() {
     super('/auth', { requiresAuth: false });
 
@@ -28,15 +38,17 @@ export default class AuthRouter extends Router {
       const cookie = uuidv4();
 
       await user.update({ cookie });
-      ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { error: null, msg: 'ok' };
     } else {
-      const error =
-        'Could not validate the email and password combination. Please try again.';
+      ctx.status = 401;
 
-      ctx.status = 400;
-      ctx.body = { error, msg: null };
+      ctx.body = {
+        error:
+          'Could not validate the email and password combination. Please try again.',
+        msg: null,
+      };
     }
   }
 
@@ -52,10 +64,10 @@ export default class AuthRouter extends Router {
       ctx.body = { errors, msg: null };
     } else {
       const cookie = uuidv4();
-      
+
       await User.create(email, password, cookie);
 
-      ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };
     }

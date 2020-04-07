@@ -28,18 +28,16 @@ export const extract_url_data = async (
   const parsedResult: ParseResult = await Mercury.parse(url, {
     html: Buffer.from(html, 'utf-8'),
   });
-
-  parsedResult.content = striptags(
-    <string>parsedResult.content,
-    ALLOWED_HTML_TAGS
-  );
+  const timeToParse = Date.now() - (timeToFetch + start);
 
   return <ParsedArticleResult>{
     ...parsedResult,
+    timeToFetch,
+    timeToParse,
+    content: striptags(<string>parsedResult.content, ALLOWED_HTML_TAGS),
     createdOn: new Date().toISOString(),
     canonicalUrl: extract_canonical_url(html) || url,
     slug: extract_slug(url),
-    timeToFetch,
-    timeToParse: Date.now() - (timeToFetch + start),
+    sizeInBytes: Buffer.byteLength(html),
   };
 };

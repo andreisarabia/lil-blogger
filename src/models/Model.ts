@@ -1,8 +1,8 @@
 import { FilterQuery, ObjectID } from 'mongodb';
 
-import Database, { InsertResult, QueryResults } from '../lib/Database';
+import Database from '../lib/Database';
 
-import { BaseProps } from '../typings';
+import { BaseProps, InsertResult, QueryResults } from '../typings';
 
 type SearchOptions = {
   collection: string;
@@ -10,23 +10,19 @@ type SearchOptions = {
   limit?: number;
 };
 
-export default class Model {
-  private db: Database;
+export default class Model<T extends BaseProps> {
   protected static readonly collectionName: string;
 
-  protected constructor(protected props: BaseProps, collection: string) {
-    this.props = { ...props };
+  private db: Database;
+
+  protected constructor(collection: string) {
     this.db = Database.instance(collection);
   }
 
-  public get id(): ObjectID {
-    return <ObjectID>this.props._id;
-  }
+  protected async insert<T extends BaseProps>(props: T): Promise<T> {
+    const [error, results] = await this.db.insert({ ...props });
 
-  public async save(): Promise<void> {
-    const [error, results] = await this.db.insert(this.props);
-
-    if (results) this.props = { ...results.ops[0] };
+    if (results) return <T>{ ...results.ops[0] };
     else throw error;
   }
 

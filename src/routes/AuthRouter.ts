@@ -47,14 +47,14 @@ export default class AuthRouter extends Router {
     const errors = await User.verify_user_data(email, password);
 
     if (errors) {
-      ctx.status = 400;
+      ctx.status = 401;
 
       ctx.body = { errors, msg: null };
     } else {
       const cookie = uuidv4();
-      const user = await User.create(email, password, cookie);
+      
+      await User.create(email, password, cookie);
 
-      await user.save();
       ctx.cookies.set(Router.authCookieName, cookie, super.sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };

@@ -11,16 +11,7 @@ import {
   ObjectId,
 } from 'mongodb';
 
-export type InsertResult = {
-  _id: ObjectId;
-};
-
-export type QueryResults = {
-  _id?: ObjectId;
-  insertedId?: string;
-  insertedCount?: number;
-  ops: object[];
-};
+import { InsertResult, QueryResults, BaseProps } from '../typings';
 
 /**
  * Each instance of a database is only created once, through the
@@ -33,25 +24,22 @@ export default class Database {
 
   private dbCollection: Collection;
 
-  private constructor(collectionName: string) {
+  private constructor(private collection: string) {
     this.dbCollection = (<MongoClient>Database.client)
       .db()
-      .collection(collectionName);
+      .collection(collection);
   }
 
-  public async insert(
-    dataObjs: object | object[]
+  public async insert<T extends BaseProps>(
+    dataObj: T
   ): Promise<[Error | null, QueryResults | null]> {
     try {
-      let result: InsertWriteOpResult<any> | InsertOneWriteOpResult<any>;
+      const result = await this.dbCollection.insertOne(dataObj);
 
-      if (Array.isArray(dataObjs)) {
-        result = await this.dbCollection.insertMany(dataObjs);
-      } else {
-        result = await this.dbCollection.insertOne(dataObjs);
-      }
-
-      return [null, <QueryResults>{ ops: result.ops }];
+      return [
+        null,
+        <QueryResults>{ ops: (<InsertOneWriteOpResult<any>>result).ops },
+      ];
     } catch (error) {
       return [error, null];
     }
@@ -105,6 +93,7 @@ export default class Database {
       Database.client = await MongoClient.connect(mongoUri, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
+        poolSize: 20,
       });
     }
   }

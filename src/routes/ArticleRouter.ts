@@ -62,8 +62,6 @@ export default class ArticleRouter extends Router {
         await article.update({ canonicalUrl: url });
       } else {
         article = await Article.create(url, user);
-
-        await article.save();
       }
 
       ctx.body = { error: null, msg: 'ok', article: article.info };
@@ -75,8 +73,10 @@ export default class ArticleRouter extends Router {
 
   private async delete_article(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url } = <ParseRequestOptions>ctx.request.body;
-    const user: User = ctx.session.user;
-    const successfullyDeleted = await Article.delete(user, url);
+    const successfullyDeleted = await Article.delete(
+      <User>ctx.session.user,
+      url
+    );
 
     if (successfullyDeleted) {
       ctx.body = { error: null, msg: 'ok' };

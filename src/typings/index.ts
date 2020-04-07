@@ -1,8 +1,8 @@
-import { ObjectID } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import { ParseResult } from '@postlight/mercury-parser';
 
 export interface BaseProps {
-  _id?: ObjectID;
+  _id?: ObjectId;
 }
 
 export interface ArticleProps extends BaseProps, ParseResult {
@@ -10,10 +10,13 @@ export interface ArticleProps extends BaseProps, ParseResult {
   createdOn: string; // UTC
   uniqueId: string;
   slug: string;
-  userId: ObjectID;
+  userId: ObjectId;
   timeToFetch: number;
   timeToParse: number;
+  sizeInBytes: number;
 }
+
+export type ArticlePropsKey = keyof ArticleProps;
 
 export type ParsedArticleResult = Omit<ArticleProps, 'uniqueId'>;
 
@@ -23,3 +26,16 @@ export interface UserProps extends BaseProps {
   uniqueId: string;
   cookie: string;
 }
+
+export type UserPropsKey = keyof UserProps;
+
+export type InsertResult = {
+  _id: ObjectId;
+};
+
+export type QueryResults = {
+  _id?: ObjectId;
+  insertedId?: string;
+  insertedCount?: number;
+  ops: object[];
+};

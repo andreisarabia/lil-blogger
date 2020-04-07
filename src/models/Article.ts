@@ -1,18 +1,21 @@
+import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 
 import Model from './Model';
 import User from './User';
 import { extract_url_data } from '../util/parser';
 
-import { ArticleProps } from '../typings';
+import { ArticleProps, ArticlePropsKey } from '../typings';
 
-type ArticlePropsKey = keyof ArticleProps;
-
-export default class Article extends Model {
+export default class Article extends Model<ArticleProps> {
   protected static readonly collectionName = 'articles';
 
   protected constructor(protected props: ArticleProps) {
-    super(props, Article.collectionName);
+    super(Article.collectionName);
+  }
+
+  public get id(): ObjectId {
+    return <ObjectId>this.props._id;
   }
 
   public get info(): Omit<ArticleProps, '_id' | 'userId'> {
@@ -33,6 +36,11 @@ export default class Article extends Model {
     value: ArticleProps[Key]
   ) {
     this.props[key] = value;
+  }
+
+  protected async save(): Promise<void> {
+    const updatedProps = await super.insert(this.props);
+    this.props = { ...updatedProps };
   }
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
@@ -67,9 +75,15 @@ export default class Article extends Model {
 
   public static async create(url: string, user: User): Promise<Article> {
     const cleanData = await extract_url_data(url);
-    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
+    const newArticle = new Article({
+      ...cleanData,
+      userId: user.id,
+      uniqueId: uuidv4(),
+    });
 
-    return new Article({ ...cleanData, uniqueId, userId: user.id });
+    await newArticle.save();
+
+    return newArticle;
   }
 
   public static async find(

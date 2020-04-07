@@ -1,22 +1,25 @@
 import bcrypt from 'bcrypt';
+import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 
 import Model from './Model';
 import { is_email, is_safe_password } from '../util/validators';
 
-import { UserProps } from '../typings';
-
-type UserPropsKey = keyof UserProps;
+import { UserProps, UserPropsKey } from '../typings';
 
 const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 50;
 const SALT_ROUNDS = 10;
 
-export default class User extends Model {
+export default class User extends Model<UserProps> {
   protected static readonly collectionName = 'users';
 
   protected constructor(protected props: UserProps) {
-    super(props, User.collectionName);
+    super(User.collectionName);
+  }
+
+  public get id(): ObjectId {
+    return <ObjectId>this.props._id;
   }
 
   private get password(): string {
@@ -28,6 +31,11 @@ export default class User extends Model {
     value: UserProps[Key]
   ) {
     this.props[key] = value;
+  }
+
+  protected async save(): Promise<void> {
+    const updatedProps = await super.insert(this.props);
+    this.props = { ...updatedProps };
   }
 
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
@@ -51,10 +59,16 @@ export default class User extends Model {
     email: string,
     password: string,
     cookie: string
-  ): Promise<User> {
+  ): Promise<void> {
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    const newUser = new User({
+      email,
+      cookie,
+      password: hash,
+      uniqueId: uuidv4(),
+    });
 
-    return new User({ email, cookie, password: hash, uniqueId: uuidv4() });
+    await newUser.save();
   }
 
   public static async find(criteria: Partial<UserProps>): Promise<User | null> {

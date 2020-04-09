@@ -15,22 +15,10 @@ export default class ArticleRouter extends Router {
     super('/article');
 
     this.instance
-      .get('/remove-all', (ctx) => this.reset_app(ctx))
       .get('/list', (ctx) => this.send_articles(ctx))
       .put('/save', (ctx) => this.save_article(ctx))
       .delete('/', (ctx) => this.delete_article(ctx))
       .delete('/all', (ctx) => this.delete_all_articles(ctx));
-  }
-
-  private async reset_app(ctx: Koa.ParameterizedContext): Promise<void> {
-    if (!config.IS_DEV) return;
-
-    try {
-      await Promise.all([Article.delete_all(), User.delete_all()]);
-    } catch (error) {
-      console.error(error);
-      ctx.body = error instanceof Error ? error.message : JSON.stringify(error);
-    }
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {

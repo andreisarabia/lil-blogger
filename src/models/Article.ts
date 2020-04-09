@@ -1,38 +1,34 @@
-import striptags from 'striptags';
-import { JSDOM } from 'jsdom';
-import Mercury, { ParseResult } from '@postlight/mercury-parser';
-import axios from 'axios';
+import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
-import { ObjectID } from 'mongodb';
 
-import Model, { BaseProps } from './Model';
+import Model from './Model';
 import User from './User';
-import { sanitize, remove_extra_whitespace } from '../util';
-import { ALLOWED_HTML_TAGS } from './constants';
+import { extract_url_data } from '../util/parser';
 
-export interface ArticleProps extends BaseProps, ParseResult {
-  canonicalUrl: string;
-  createdOn: string; // UTC
-  uniqueId: string;
-  slug: string;
-  userId: ObjectID;
-}
+import { ArticleProps, ArticlePropsKey } from '../typings';
 
-type ArticlePropsKey = keyof ArticleProps;
-
-type ArticleUrlExtractionData = Omit<ArticleProps, 'uniqueId'>;
-
-export default class Article extends Model {
-  private static readonly collectionName = 'articles';
+export default class Article extends Model<ArticleProps> {
+  protected static readonly collectionName = 'articles';
 
   protected constructor(protected props: ArticleProps) {
-    super(props, Article.collectionName);
+    super(Article.collectionName);
+  }
+
+  public get id(): ObjectId {
+    return <ObjectId>this.props._id;
   }
 
   public get info(): Omit<ArticleProps, '_id' | 'userId'> {
     const { _id, userId, ...publicProps } = this.props;
 
     return publicProps;
+  }
+
+  /**
+   * Returns timestamp in UTC string
+   */
+  public get createdOn(): string {
+    return this.props.createdOn;
   }
 
   private update_props<Key extends ArticlePropsKey>(
@@ -42,12 +38,15 @@ export default class Article extends Model {
     this.props[key] = value;
   }
 
-  public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
-    const keys = Object.keys(propsToUpdate) as ArticlePropsKey[];
+  protected async save(): Promise<void> {
+    const updatedProps = await super.insert(this.props);
+    this.props = { ...updatedProps };
+  }
 
+  public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     let updatedProps: { [key: string]: any } = {};
 
-    for (const key of keys) {
+    for (const key of <ArticlePropsKey[]>Object.keys(propsToUpdate)) {
       if (!(key in this.props)) continue;
 
       const value = propsToUpdate[key];
@@ -56,7 +55,7 @@ export default class Article extends Model {
 
       if (key === 'canonicalUrl') {
         // we want to get the original location's refreshed content
-        const newProps = await Article.extract_url_data(value as string);
+        const newProps = await extract_url_data(<string>value);
 
         updatedProps = { ...updatedProps, ...newProps };
         this.props = { ...this.props, ...updatedProps };
@@ -74,78 +73,45 @@ export default class Article extends Model {
     );
   }
 
-  public static async create({
-    url,
-    userId
-  }: Pick<ArticleProps, 'url' | 'userId'>): Promise<Article> {
-    const cleanData = await Article.extract_url_data(url);
-    const uniqueId = uuidv4(); // client facing unique id, not Mongo's _id
+  public static async create(url: string, user: User): Promise<Article> {
+    const cleanData = await extract_url_data(url);
+    const newArticle = new Article({
+      ...cleanData,
+      userId: user.id,
+      uniqueId: uuidv4(),
+    });
 
-    return new Article({ ...cleanData, uniqueId, userId });
+    await newArticle.save();
+
+    return newArticle;
   }
 
-  public static async find(user: User): Promise<Article> {
-    const articleData = (await Model.search({
-      collection: Article.collectionName,
-      criteria: { userId: user.id },
-      limit: 1
-    })) as ArticleProps;
+  public static async find(
+    criteria: Partial<ArticleProps>
+  ): Promise<Article | null> {
+    const articleData = await super.search_one({
+      collection: this.collectionName,
+      criteria,
+    });
 
-    return articleData ? new Article(articleData) : null;
+    return articleData ? new Article(<ArticleProps>articleData) : null;
   }
 
   public static async find_all(
-    searchProps: Partial<ArticleProps> = {}
-  ): Promise<Article[]> {
-    const articlesData = (await Model.search({
-      collection: Article.collectionName,
-      criteria: searchProps,
-      limit: 0
-    })) as ArticleProps[];
+    criteria: Partial<ArticleProps>
+  ): Promise<Article[] | null> {
+    const articlesData = await super.search({
+      collection: this.collectionName,
+      criteria,
+      limit: 0,
+    });
 
-    return articlesData ? articlesData.map(data => new Article(data)) : null;
+    return articlesData
+      ? (<ArticleProps[]>articlesData).map((data) => new Article(data))
+      : null;
   }
 
   public static delete(user: User, url: string): Promise<boolean> {
-    return Model.remove(Article.collectionName, { userId: user.id, url });
-  }
-
-  public static delete_all(): Promise<boolean> {
-    return Model.drop_all(Article.collectionName);
-  }
-
-  private static async extract_url_data(
-    url: string
-  ): Promise<ArticleUrlExtractionData> {
-    const { data: dirtyHtml }: { data: string } = await axios.get(url);
-    const html = sanitize(remove_extra_whitespace(dirtyHtml), {
-      ADD_TAGS: ['link']
-    });
-    const { content, ...restOfResult }: ParseResult = await Mercury.parse(url, {
-      html: Buffer.from(html, 'utf-8')
-    });
-
-    return {
-      ...restOfResult,
-      content: striptags(content, ALLOWED_HTML_TAGS),
-      createdOn: new Date().toISOString(),
-      canonicalUrl: Article.extract_canonical_url(html) || url,
-      slug: Article.extract_slug(url)
-    } as ArticleUrlExtractionData;
-  }
-
-  private static extract_canonical_url(html: string): string {
-    const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
-
-    for (const tag of linkTags) if (tag.rel === 'canonical') return tag.href;
-
-    return null;
-  }
-
-  private static extract_slug(url: string): string {
-    const { pathname } = new URL(url); // easier to parse URLs with queries
-    const lastPartOfUrl = pathname.substring(pathname.lastIndexOf('/'));
-
-    return lastPartOfUrl;
+    return super.remove(this.collectionName, { userId: user.id, url });
   }
 }

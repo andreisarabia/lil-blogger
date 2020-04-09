@@ -1,6 +1,6 @@
 import React from 'react';
 import axios from 'axios';
-import Head from 'next/head'
+import Head from 'next/head';
 
 import ArticleView from '../components/ArticleView';
 import ArticlesListView from '../components/ArticlesListView';
@@ -19,7 +19,7 @@ export default class HomePage extends React.Component<
 > {
   state = {
     articlesList: null,
-    viewingArticle: null
+    viewingArticle: null,
   };
 
   constructor(props) {
@@ -32,29 +32,29 @@ export default class HomePage extends React.Component<
 
     this.setState({
       articlesList,
-      viewingArticle: articlesList[0]
+      viewingArticle: articlesList[0],
     });
   };
 
   handle_add_article = async (link: string) => {
     const { data } = await axios.put('http://localhost:3000/api/article/save', {
-      url: link
+      url: link,
     });
     const { msg, article } = data as { msg: string; article: ArticleProps };
 
     if (msg === 'ok') {
-      this.setState(state => ({
+      this.setState((state) => ({
         articlesList: [...state.articlesList, article].sort((a, b) =>
           sort_by_date(a.createdOn, b.createdOn)
         ),
-        viewingArticle: article
+        viewingArticle: article,
       }));
     }
   };
 
   handle_article_focus = (url: string) => {
-    this.setState(state => ({
-      viewingArticle: state.articlesList.find(article => article.url === url)
+    this.setState((state) => ({
+      viewingArticle: state.articlesList.find((article) => article.url === url),
     }));
   };
 

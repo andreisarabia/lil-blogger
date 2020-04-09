@@ -15,58 +15,63 @@ export default class ArticleRouter extends Router {
     super('/article');
 
     this.instance
-      .get('/list', ctx => this.send_articles(ctx))
-      .put('/save', ctx => this.save_article(ctx))
-      .delete('/', ctx => this.delete_article(ctx))
-      .delete('/all', ctx => this.delete_all_articles(ctx));
+      .get('/list', (ctx) => this.send_articles(ctx))
+      .put('/save', (ctx) => this.save_article(ctx))
+      .delete('/', (ctx) => this.delete_article(ctx))
+      .delete('/all', (ctx) => this.delete_all_articles(ctx));
   }
 
   private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
-    const user: User = ctx.session.user;
-    const articles: Article[] = await Article.find_all({ userId: user.id });
-    const articlesList = articles
-      ? articles
-          .map(article => article.info)
-          .sort((a, b) => sort_by_date(a.createdOn, b.createdOn))
-      : [];
+    const allArticles: Article[] | null = await Article.find_all({
+      userId: (<User>ctx.session.user).id,
+    });
 
-    ctx.body = { articlesList };
+    if (allArticles) {
+      const articles = allArticles
+        .sort((a, b) => sort_by_date(a.createdOn, b.createdOn))
+        .map((article) => article.info);
+
+      ctx.body = { articlesList: articles };
+    } else {
+      ctx.body = { articlesList: [] };
+    }
   }
 
   private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url } = ctx.request.body as ParseRequestOptions;
+    const { url } = <ParseRequestOptions>ctx.request.body;
 
     if (is_url(url)) {
       const user: User = ctx.session.user;
 
-      let article = await Article.find(user);
+      let article = await Article.find({ userId: user.id });
 
       if (article) {
-        await article.update({ url, canonicalUrl: url });
+        await article.update({ canonicalUrl: url });
       } else {
-        const user: User = ctx.session.user;
-        article = await Article.create({ url, userId: user.id });
-
-        await article.save();
+        article = await Article.create(url, user);
       }
 
-      ctx.body = { msg: 'ok', article: article.info };
+      ctx.body = { error: null, msg: 'ok', article: article.info };
     } else {
       ctx.status = 400;
-      ctx.body = { msg: 'Cannot parse given URL.' };
+
+      ctx.body = { error: 'Cannot parse given URL.', msg: null };
     }
   }
 
   private async delete_article(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url } = ctx.request.body as ParseRequestOptions;
-    const user: User = ctx.session.user;
-    const successfullyDeleted = await Article.delete(user, url);
+    const { url } = <ParseRequestOptions>ctx.request.body;
+    const successfullyDeleted = await Article.delete(
+      <User>ctx.session.user,
+      url
+    );
 
     if (successfullyDeleted) {
-      ctx.body = { msg: 'ok' };
+      ctx.body = { error: null, msg: 'ok' };
     } else {
       ctx.status = 400;
-      ctx.body = { msg: 'Could not delete the given URL.' };
+
+      ctx.body = { error: 'Could not delete the given URL.', msg: null };
     }
   }
 

@@ -1,6 +1,8 @@
 import { FilterQuery, ObjectID } from 'mongodb';
 
-import Database, { InsertResult } from '../lib/Database';
+import Database from '../lib/Database';
+
+import { BaseProps, InsertResult, QueryResults } from '../typings';
 
 type SearchOptions = {
   collection: string;
@@ -8,30 +10,20 @@ type SearchOptions = {
   limit?: number;
 };
 
-export interface BaseProps {
-  _id?: ObjectID;
-}
+export default class Model<T extends BaseProps> {
+  protected static readonly collectionName: string;
 
-export default class Model {
   private db: Database;
 
-  protected constructor(protected props: BaseProps, collection: string) {
-    this.props = { ...props };
+  protected constructor(collection: string) {
     this.db = Database.instance(collection);
   }
 
-  public get id(): ObjectID {
-    return this.props._id;
-  }
+  protected async insert<T extends BaseProps>(props: T): Promise<T> {
+    const [error, results] = await this.db.insert({ ...props });
 
-  public async save(): Promise<this> {
-    const [error, results] = await this.db.insert(this.props);
-    if (error) throw error;
-
-    const { _id, ...props } = results.ops[0] as InsertResult;
-    this.props = props;
-
-    return this;
+    if (results) return <T>{ ...results.ops[0] };
+    else throw error;
   }
 
   protected static update_one(
@@ -40,20 +32,25 @@ export default class Model {
     propsToUpdate: object
   ): Promise<boolean> {
     return Database.instance(collection).update_one(searchProps, {
-      $set: propsToUpdate
+      $set: propsToUpdate,
     });
+  }
+
+  protected static search_one({
+    collection,
+    criteria,
+  }: SearchOptions): Promise<object | null> {
+    return Database.instance(collection).find(criteria, { limit: 1 });
   }
 
   protected static search({
     collection,
     criteria,
-    limit
-  }: SearchOptions): Promise<object | object[]> {
-    return Database.instance(collection).find(criteria, { limit });
-  }
-
-  protected static drop_all(collection: string): Promise<boolean> {
-    return Database.instance(collection).drop_collection();
+    limit,
+  }: SearchOptions): Promise<object[] | null> {
+    return <Promise<object[] | null>>(
+      Database.instance(collection).find(criteria, { limit })
+    );
   }
 
   protected static remove(
@@ -61,5 +58,9 @@ export default class Model {
     criteria: FilterQuery<object>
   ): Promise<boolean> {
     return Database.instance(collection).delete(criteria);
+  }
+
+  public static delete_all(): Promise<boolean> {
+    return Database.instance(this.collectionName).drop_collection();
   }
 }

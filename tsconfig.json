@@ -7,7 +7,7 @@
     "preserveConstEnums": true,
     "rootDir": "./src",
     "outDir": "./build",
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },

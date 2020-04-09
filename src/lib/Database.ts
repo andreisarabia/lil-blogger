@@ -2,23 +2,16 @@ import {
   Collection,
   FilterQuery,
   FindOneOptions,
+  UpdateQuery,
   InsertOneWriteOpResult,
   InsertWriteOpResult,
   FindAndModifyWriteOpResultObject,
   UpdateWriteOpResult,
   MongoClient,
-  ObjectId
+  ObjectId,
 } from 'mongodb';
 
-export type InsertResult = {
-  _id: ObjectId;
-};
-
-export type QueryResults = {
-  insertedId?: string;
-  insertedCount?: number;
-  ops?: object[];
-};
+import { InsertResult, QueryResults, BaseProps } from '../typings';
 
 /**
  * Each instance of a database is only created once, through the
@@ -26,28 +19,27 @@ export type QueryResults = {
  * An instance represents a connection to a collection.
  */
 export default class Database {
-  private static client: MongoClient = null;
+  private static client: MongoClient | null = null;
   private static dbCache = new Map<string, Database>();
 
   private dbCollection: Collection;
 
-  private constructor(collectionName: string) {
-    this.dbCollection = Database.client.db().collection(collectionName);
+  private constructor(private collection: string) {
+    this.dbCollection = (<MongoClient>Database.client)
+      .db()
+      .collection(collection);
   }
 
-  public async insert(
-    dataObjs: object | object[]
-  ): Promise<[Error, QueryResults]> {
+  public async insert<T extends BaseProps>(
+    dataObj: T
+  ): Promise<[Error | null, QueryResults | null]> {
     try {
-      let result: InsertWriteOpResult<any> | InsertOneWriteOpResult<any> | any;
+      const result = await this.dbCollection.insertOne(dataObj);
 
-      if (Array.isArray(dataObjs)) {
-        result = await this.dbCollection.insertMany(dataObjs as any[]);
-      } else {
-        result = await this.dbCollection.insertOne(dataObjs);
-      }
-
-      return [null, { ops: result.ops } as QueryResults];
+      return [
+        null,
+        <QueryResults>{ ops: (<InsertOneWriteOpResult<any>>result).ops },
+      ];
     } catch (error) {
       return [error, null];
     }
@@ -56,8 +48,8 @@ export default class Database {
   public async find(
     criteria: FilterQuery<any>,
     options?: FindOneOptions
-  ): Promise<object | object[] | any[]> {
-    let results: object | object[] | any[];
+  ): Promise<object | object[] | any[] | null> {
+    let results: object | object[] | any[] | null;
 
     if (options?.limit === 1) {
       results = await this.dbCollection.findOne(criteria);
@@ -70,22 +62,17 @@ export default class Database {
 
   public async update_one(
     searchProps: object,
-    props: object
+    props: UpdateQuery<any>
   ): Promise<boolean> {
-    const { result }: UpdateWriteOpResult = await this.dbCollection.updateOne(
-      searchProps,
-      props
-    );
+    const result = await this.dbCollection.updateOne(searchProps, props);
 
-    return result.ok === 1;
+    return (<UpdateWriteOpResult>result).result.ok === 1;
   }
 
   public async delete(criteria: FilterQuery<object>): Promise<boolean> {
-    const result: FindAndModifyWriteOpResultObject<any> = await this.dbCollection.findOneAndDelete(
-      criteria
-    );
+    const result = await this.dbCollection.findOneAndDelete(criteria);
 
-    return result.ok === 1;
+    return (<FindAndModifyWriteOpResultObject<any>>result).ok === 1;
   }
 
   public async drop_collection(): Promise<boolean> {
@@ -93,7 +80,7 @@ export default class Database {
       await this.dbCollection.drop();
       return true;
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return false;
     }
   }
@@ -105,16 +92,21 @@ export default class Database {
 
       Database.client = await MongoClient.connect(mongoUri, {
         useNewUrlParser: true,
-        useUnifiedTopology: true
+        useUnifiedTopology: true,
+        poolSize: 20,
       });
     }
   }
 
   public static instance(collection: string): Database {
     const cache = Database.dbCache;
+    let db = cache.get(collection);
 
-    if (!cache.has(collection)) cache.set(collection, new Database(collection));
+    if (!db) {
+      db = new Database(collection);
+      cache.set(collection, db);
+    }
 
-    return cache.get(collection);
+    return db;
   }
 }

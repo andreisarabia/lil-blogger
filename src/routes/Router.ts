@@ -14,7 +14,7 @@ export default class Router {
     this.instance = new KoaRouter({ prefix: `/api${prefix}` });
 
     this.instance.use(async (ctx, next) => {
-      if (requiresAuth && !Router.is_authenticated(ctx)) {
+      if (requiresAuth && !Router.isAuthenticated(ctx)) {
         ctx.throw(400, 'Not allowed.');
       }
 
@@ -33,15 +33,15 @@ export default class Router {
 
     this.allPathsWithMethods.clear();
 
-    this.instance.stack.forEach(({ path, methods }) => {
-      if (!path.endsWith(DYNAMIC_URL_SUFFIX))
-        this.allPathsWithMethods.set(path, methods);
-    });
+    for (const { path, methods } of this.instance.stack) {
+      if (path.endsWith(DYNAMIC_URL_SUFFIX)) continue;
+      this.allPathsWithMethods.set(path, methods);
+    }
 
     return new Map(this.allPathsWithMethods);
   }
 
-  public static is_authenticated(ctx: Koa.ParameterizedContext) {
-    return Boolean(ctx.cookies.get(Router.authCookieName));
+  public static isAuthenticated(ctx: Koa.ParameterizedContext) {
+    return Boolean(ctx.cookies.get(this.authCookieName));
   }
 }

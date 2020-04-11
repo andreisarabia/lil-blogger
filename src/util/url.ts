@@ -1,4 +1,4 @@
-export const is_url = (url: string): boolean => {
+export const isUrl = (url: string): boolean => {
   try {
     return Boolean(new URL(url));
   } catch {
@@ -6,7 +6,7 @@ export const is_url = (url: string): boolean => {
   }
 };
 
-export const extract_slug = (url: string): string => {
+export const extractSlug = (url: string): string => {
   const { pathname } = new URL(url); // easier to parse URLs with queries
 
   return pathname.substring(pathname.lastIndexOf('/'));

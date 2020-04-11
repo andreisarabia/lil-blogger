@@ -29,10 +29,6 @@ export interface UserProps extends BaseProps {
 
 export type UserPropsKey = keyof UserProps;
 
-export type InsertResult = {
-  _id: ObjectId;
-};
-
 export type QueryResults = {
   _id?: ObjectId;
   insertedId?: string;

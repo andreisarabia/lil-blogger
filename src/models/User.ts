@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 
 import Model from './Model';
-import { is_email, is_safe_password } from '../util/validators';
+import { isEmail, isSafePassword } from '../util/validators';
 
 import { UserProps, UserPropsKey } from '../typings';
 
@@ -26,16 +26,15 @@ export default class User extends Model<UserProps> {
     return this.props.password;
   }
 
-  private update_props<Key extends UserPropsKey>(
+  private updateProps<Key extends UserPropsKey>(
     key: Key,
     value: UserProps[Key]
   ) {
     this.props[key] = value;
   }
 
-  protected async save(): Promise<void> {
-    const updatedProps = await super.insert(this.props);
-    this.props = { ...updatedProps };
+  private async save(): Promise<void> {
+    this.props = await super.insert(this.props);
   }
 
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
@@ -48,11 +47,11 @@ export default class User extends Model<UserProps> {
 
       if (value === undefined) continue;
 
-      this.update_props(key, value);
+      this.updateProps(key, value);
       updatedProps[key] = value;
     }
 
-    await Model.update_one(User.collectionName, { _id: this.id }, updatedProps);
+    await Model.updateOne(User.collectionName, { _id: this.id }, updatedProps);
   }
 
   public static async create(
@@ -61,18 +60,17 @@ export default class User extends Model<UserProps> {
     cookie: string
   ): Promise<void> {
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    const newUser = new User({
+
+    await new User({
       email,
       cookie,
       password: hash,
       uniqueId: uuidv4(),
-    });
-
-    await newUser.save();
+    }).save();
   }
 
   public static async find(criteria: Partial<UserProps>): Promise<User | null> {
-    const userData = await super.search_one({
+    const userData = await super.searchOne({
       collection: this.collectionName,
       criteria,
     });
@@ -80,7 +78,7 @@ export default class User extends Model<UserProps> {
     return userData ? new User(<UserProps>userData) : null;
   }
 
-  public static async validate_credentials(
+  public static async validateCredentials(
     email: string,
     password: string
   ): Promise<User | null> {
@@ -93,13 +91,13 @@ export default class User extends Model<UserProps> {
     return user && isValidPassword ? user : null;
   }
 
-  public static async verify_user_data(
+  public static async verifyUserData(
     email: string,
     password: string
   ): Promise<string[] | null> {
     const errors: string[] = [];
 
-    if (!is_email(email) || (await this.exists(email)))
+    if (!isEmail(email) || (await this.exists(email)))
       errors.push('Email is not valid.');
 
     if (password.length < MIN_PASSWORD_LENGTH)
@@ -107,7 +105,7 @@ export default class User extends Model<UserProps> {
     else if (password.length > MAX_PASSWORD_LENGTH)
       errors.push('Password is too long.');
 
-    if (!is_safe_password(password))
+    if (!isSafePassword(password))
       errors.push(
         `Your password contains invalid characters. Please use:
         At least one lowercase letter
@@ -120,12 +118,8 @@ export default class User extends Model<UserProps> {
   }
 
   private static async exists(email: string): Promise<boolean> {
-    const userData = await super.search({
-      collection: this.collectionName,
-      criteria: { email },
-      limit: 1,
-    });
+    const user = await this.find({ email });
 
-    return Boolean(<UserProps | null>userData);
+    return Boolean(user);
   }
 }

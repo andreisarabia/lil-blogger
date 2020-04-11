@@ -4,7 +4,7 @@ import Router from './Router';
 import Article from '../models/Article';
 import User from '../models/User';
 import config from '../config';
-import { sort_by_date, is_url } from '../util';
+import { sortByDate, isUrl } from '../util';
 
 type ParseRequestOptions = {
   url: string;
@@ -15,21 +15,21 @@ export default class ArticleRouter extends Router {
     super('/article');
 
     this.instance
-      .get('/list', (ctx) => this.send_articles(ctx))
-      .put('/save', (ctx) => this.save_article(ctx))
-      .delete('/', (ctx) => this.delete_article(ctx))
-      .delete('/all', (ctx) => this.delete_all_articles(ctx));
+      .get('/list', ctx => this.sendArticles(ctx))
+      .put('/save', ctx => this.saveArticle(ctx))
+      .delete('/', ctx => this.deleteArticle(ctx))
+      .delete('/all', ctx => this.deleteAllArticles(ctx));
   }
 
-  private async send_articles(ctx: Koa.ParameterizedContext): Promise<void> {
-    const allArticles: Article[] | null = await Article.find_all({
+  private async sendArticles(ctx: Koa.ParameterizedContext): Promise<void> {
+    const allArticles: Article[] | null = await Article.findAll({
       userId: (<User>ctx.session.user).id,
     });
 
     if (allArticles) {
       const articles = allArticles
-        .sort((a, b) => sort_by_date(a.createdOn, b.createdOn))
-        .map((article) => article.info);
+        .sort((a, b) => sortByDate(a.createdOn, b.createdOn))
+        .map(article => article.info);
 
       ctx.body = { articlesList: articles };
     } else {
@@ -37,10 +37,10 @@ export default class ArticleRouter extends Router {
     }
   }
 
-  private async save_article(ctx: Koa.ParameterizedContext): Promise<void> {
+  private async saveArticle(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url } = <ParseRequestOptions>ctx.request.body;
 
-    if (is_url(url)) {
+    if (isUrl(url)) {
       const user: User = ctx.session.user;
 
       let article = await Article.find({ userId: user.id });
@@ -59,7 +59,7 @@ export default class ArticleRouter extends Router {
     }
   }
 
-  private async delete_article(ctx: Koa.ParameterizedContext): Promise<void> {
+  private async deleteArticle(ctx: Koa.ParameterizedContext): Promise<void> {
     const { url } = <ParseRequestOptions>ctx.request.body;
     const successfullyDeleted = await Article.delete(
       <User>ctx.session.user,
@@ -75,11 +75,11 @@ export default class ArticleRouter extends Router {
     }
   }
 
-  private async delete_all_articles(
+  private async deleteAllArticles(
     ctx: Koa.ParameterizedContext
   ): Promise<void> {
     try {
-      await Article.delete_all();
+      await Article.deleteAll();
 
       ctx.body = { error: null, msg: 'ok' };
     } catch (error) {

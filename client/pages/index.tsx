@@ -6,11 +6,11 @@ import ArticleView from '../components/ArticleView';
 import ArticlesListView from '../components/ArticlesListView';
 import { ArticleProps } from '../typings';
 import { HomePageWrapper } from '../styles';
-import { sort_by_date } from '../util';
+import { sortByDate } from '../util';
 
 interface HomePageArticleState {
-  articlesList: ArticleProps[];
-  viewingArticle: ArticleProps;
+  articlesList: ArticleProps[] | null;
+  viewingArticle: ArticleProps | null;
 }
 
 export default class HomePage extends React.Component<
@@ -21,10 +21,6 @@ export default class HomePage extends React.Component<
     articlesList: null,
     viewingArticle: null,
   };
-
-  constructor(props) {
-    super(props);
-  }
 
   componentDidMount = async () => {
     const { data } = await axios.get('http://localhost:3000/api/article/list');
@@ -43,9 +39,9 @@ export default class HomePage extends React.Component<
     const { msg, article } = data as { msg: string; article: ArticleProps };
 
     if (msg === 'ok') {
-      this.setState((state) => ({
+      this.setState(state => ({
         articlesList: [...state.articlesList, article].sort((a, b) =>
-          sort_by_date(a.createdOn, b.createdOn)
+          sortByDate(a.createdOn, b.createdOn)
         ),
         viewingArticle: article,
       }));
@@ -53,8 +49,8 @@ export default class HomePage extends React.Component<
   };
 
   handle_article_focus = (url: string) => {
-    this.setState((state) => ({
-      viewingArticle: state.articlesList.find((article) => article.url === url),
+    this.setState(state => ({
+      viewingArticle: state.articlesList.find(article => article.url === url),
     }));
   };
 

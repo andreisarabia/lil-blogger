@@ -11,7 +11,7 @@ import {
   ObjectId,
 } from 'mongodb';
 
-import { InsertResult, QueryResults, BaseProps } from '../typings';
+import { QueryResults, BaseProps } from '../typings';
 
 /**
  * Each instance of a database is only created once, through the
@@ -60,7 +60,7 @@ export default class Database {
     return results;
   }
 
-  public async update_one(
+  public async updateOne(
     searchProps: object,
     props: UpdateQuery<any>
   ): Promise<boolean> {
@@ -75,7 +75,7 @@ export default class Database {
     return (<FindAndModifyWriteOpResultObject<any>>result).ok === 1;
   }
 
-  public async drop_collection(): Promise<boolean> {
+  public async dropCollection(): Promise<boolean> {
     try {
       await this.dbCollection.drop();
       return true;
@@ -86,16 +86,16 @@ export default class Database {
   }
 
   public static async initialize(): Promise<void> {
-    if (!Database.client) {
-      const mongoUri =
-        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
+    if (Database.client) return;
 
-      Database.client = await MongoClient.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        poolSize: 20,
-      });
-    }
+    const mongoUri =
+      process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
+
+    Database.client = await MongoClient.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      poolSize: 20,
+    });
   }
 
   public static instance(collection: string): Database {

@@ -4,6 +4,8 @@ import { UrlWithParsedQuery } from 'url';
 import Koa from 'koa';
 import koaBody from 'koa-body';
 import koaSession from 'koa-session';
+import koaConnect from 'koa-connect';
+import compression from 'compression';
 import nextApp from 'next';
 import chalk from 'chalk';
 
@@ -11,7 +13,7 @@ import Database from './Database';
 import User from '../models/User';
 import { Router, AuthRouter, ArticleRouter } from '../routes';
 import config from '../config';
-import { is_url } from '../util/url';
+import { isUrl } from '../util/url';
 
 type ContentSecurityPolicy = {
   [k: string]: string[];
@@ -22,13 +24,11 @@ const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
 const FILE_TYPES = ['_next', '.ico', '.json'];
 
 // helpers
-const has_session = (ctx: Koa.ParameterizedContext) =>
+const hasSession = (ctx: Koa.ParameterizedContext) =>
   Boolean(ctx.cookies.get('__app'));
 
-const is_static_file = (path: string) =>
-  FILE_TYPES.some((type) => path.includes(type));
-
-const routers = [new AuthRouter(), new ArticleRouter()]; // api
+const isStaticFile = (path: string) =>
+  FILE_TYPES.some(type => path.includes(type));
 
 export default class Server {
   private static singleton = new Server();
@@ -37,12 +37,6 @@ export default class Server {
   private readonly port = parseInt(<string>process.env.APP_PORT, 10) || 3000;
   private apiPathsMap = new Map<string, string[]>();
   private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
-
-  private clientAppHandler: (
-    req: IncomingMessage,
-    res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery
-  ) => Promise<void> = this.clientApp.getRequestHandler();
 
   private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
@@ -55,165 +49,185 @@ export default class Server {
     ],
   };
 
-  private readonly sessionConfig = {
-    key: '__app',
-    maxAge: ONE_DAY_IN_MS,
-    overwrite: true,
-    signed: true,
-    httpOnly: true,
-    autoCommit: false,
-  };
-
   private stats: { [k: string]: number | null } = {
     dbStartup: null,
     clientStartup: null,
+    appStartup: null,
   };
 
-  private constructor() {}
+  private constructor() {
+    this.app.keys = ['_app'];
+  }
 
   private get cspHeader(): string {
     let header = '';
 
-    Object.entries(this.csp).forEach(([src, directives]) => {
-      const preppedDirectives = directives.map((directive) =>
-        is_url(directive) ? directive : `'${directive}'`
+    for (const [src, directives] of Object.entries(this.csp)) {
+      const preppedDirectives = directives.map(directive =>
+        isUrl(directive) ? directive : `'${directive}'`
       );
 
       const directiveRule = `${src} ${preppedDirectives.join(' ')}`;
 
       header += header === '' ? directiveRule : `; ${directiveRule}`;
-    });
+    }
 
     return header;
   }
 
-  private async initialize_client_app(): Promise<void> {
+  private async initializeClientApp(): Promise<void> {
     const start = Date.now();
     await this.clientApp.prepare();
     this.stats.clientStartup = Date.now() - start;
   }
 
-  private async initialize_database(): Promise<void> {
+  private async initializeDatabase(): Promise<void> {
     const start = Date.now();
     await Database.initialize();
     this.stats.dbStartup = Date.now() - start;
   }
 
-  private attach_api_routes() {
+  private attachInitialRequestMiddlewares() {
+    const sessionConfig = {
+      key: '__app',
+      maxAge: ONE_DAY_IN_MS,
+      overwrite: true,
+      signed: true,
+      httpOnly: true,
+      autoCommit: false,
+    }; // TODO: make secure in prod when HTTPS is needed
+
+    this.app
+      .use(koaSession(sessionConfig, this.app))
+      .use(koaBody({ json: true }))
+      .use(koaConnect(compression()));
+  }
+
+  private attachLoggerMiddleware() {
     const defaultApiHeaders = {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'deny',
       'X-XSS-Protection': '1; mode=block',
     };
 
-    this.app.keys = ['_app'];
+    this.app.use(async (ctx: Koa.ParameterizedContext, next: Koa.Next) => {
+      const start = Date.now();
+      const { path } = ctx;
 
-    this.app
-      .use(koaSession(this.sessionConfig, this.app))
-      .use(koaBody({ json: true }))
-      .use(async (ctx, next) => {
-        const start = Date.now();
-        const { path } = ctx;
+      ctx.set(defaultApiHeaders);
 
-        ctx.set(defaultApiHeaders);
+      try {
+        if (isStaticFile(path)) return await next(); // handled by Next
 
-        let viewsMsg = '';
+        if (path.startsWith('/login') || path.startsWith('/api/auth')) {
+          if (path.startsWith('/login'))
+            ctx.session.views = ctx.session.views + 1 || 1;
 
-        try {
-          if (is_static_file(path)) return await next(); // handled by Next
+          await ctx.session.manuallyCommit();
 
-          if (path.startsWith('/login') || path.startsWith('/api/auth')) {
-            if (path.startsWith('/login')) {
-              ctx.session.views = ctx.session.views + 1 || 1;
-              viewsMsg = `[Views: ${ctx.session.views}]`;
+          return await next();
+        }
+
+        if (hasSession(ctx) && Router.isAuthenticated(ctx)) {
+          if (!ctx.session.user) {
+            const cookie = ctx.cookies.get(Router.authCookieName) || '';
+            const user = await User.find({ cookie });
+
+            if (cookie && user) {
+              ctx.session.user = user;
+            } else {
+              ctx.session = null;
+              ctx.redirect('/login');
             }
+          }
+
+          if (!path.startsWith('/api')) {
+            // log only non-API calls as a `view`
+            ctx.session.views = ctx.session.views + 1 || 1;
 
             await ctx.session.manuallyCommit();
-            await next();
-          } else if (has_session(ctx) && Router.is_authenticated(ctx)) {
-            if (!path.startsWith('/api')) {
-              // log only non-API calls as a `view`
-              ctx.session.views = ctx.session.views + 1 || 1;
-              viewsMsg = `[Views: ${ctx.session.views}]`;
-
-              await ctx.session.manuallyCommit();
-            }
-
-            if (!ctx.session.user) {
-              ctx.session.user = await User.find({
-                cookie: ctx.cookies.get(Router.authCookieName),
-              });
-            }
-
-            await next();
-          } else {
-            ctx.redirect('/login');
           }
-        } finally {
-          const xResponseTime = `${Date.now() - start}ms`;
-          const ua = ctx.header['user-agent'];
-          const logMsg = `${ctx.method} ${path} (${ctx.status}) - ${xResponseTime} ${ua} ${viewsMsg}`;
 
-          if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
-
-          if (ctx.status >= 400) log(chalk.red(logMsg));
-          else if (ctx.status >= 300) log(chalk.inverse(logMsg));
-          else if (is_static_file(path)) log(chalk.cyan(logMsg));
-          else log(chalk.green(logMsg));
+          return await next();
         }
-      });
 
-    routers.forEach(({ pathsMap, middleware }) => {
+        ctx.redirect('/login');
+      } finally {
+        const xResponseTime = `${Date.now() - start}ms`;
+        const { 'user-agent': ua, referer = '' } = ctx.header;
+        const timestamp = new Date().toLocaleString();
+
+        const logMsg = `${ctx.ip} - - [${timestamp}] ${ctx.method} ${path} ${ctx.status} ${xResponseTime} ${referer} - ${ua}`;
+
+        if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
+
+        if (ctx.status >= 400) log(chalk.red(logMsg));
+        else if (ctx.status >= 300) log(chalk.inverse(logMsg));
+        else if (isStaticFile(path)) log(chalk.cyan(logMsg));
+        else log(chalk.green(logMsg));
+      }
+    });
+  }
+
+  private attachApiRoutes(): void {
+    const routers = [new AuthRouter(), new ArticleRouter()];
+
+    for (const { pathsMap, middleware } of routers) {
       for (const [path, methods] of pathsMap)
         this.apiPathsMap.set(path, methods);
 
       this.app.use(middleware.routes()).use(middleware.allowedMethods());
-    });
+    }
   }
 
-  private attach_client_routes() {
+  private attachClientRoutes(): void {
     const defaultClientHeaders = {
       'Content-Security-Policy': this.cspHeader, // preferably set on the server e.g. Nginx/Apache
     };
+    const clientAppHandler: (
+      req: IncomingMessage,
+      res: ServerResponse
+    ) => Promise<void> = this.clientApp.getRequestHandler();
 
-    this.app.use(async (ctx) => {
+    this.app.use(async ctx => {
       ctx.set(defaultClientHeaders);
-      await this.clientAppHandler(ctx.req, ctx.res);
+      await clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
-      // ctx.session = null; // prevent err w/ Next and its handling of headers
     });
   }
 
-  private attach_error_handler(): void {
-    this.app.on('error', (err) => {
-      log(err, new Date().toLocaleString());
+  private attachErrorHandler(): void {
+    this.app.on('error', err => {
+      log(err instanceof Error ? err.stack : err, new Date().toLocaleString());
     });
   }
 
-  private attach_middlewares(): void {
-    this.attach_api_routes();
-    this.attach_client_routes();
-    this.attach_error_handler();
+  private attachMiddlewares(): void {
+    this.attachInitialRequestMiddlewares();
+    this.attachLoggerMiddleware();
+    this.attachApiRoutes();
+    this.attachClientRoutes();
+    this.attachErrorHandler();
   }
 
   public async setup(): Promise<void> {
     if (config.SHOULD_COMPILE) {
       await Promise.all([
-        this.initialize_client_app(),
-        this.initialize_database(),
+        this.initializeClientApp(),
+        this.initializeDatabase(),
       ]);
     } else {
-      await this.initialize_database();
+      await this.initializeDatabase();
     }
 
-    this.attach_middlewares();
+    this.attachMiddlewares();
   }
 
   public start(): void {
     this.app.listen(this.port, () => {
       log(`Listening on port ${this.port}...`);
       log('Content Security Policy: ', this.csp);
-      log('Registered paths:', this.apiPathsMap);
+      log('Registered API paths:', this.apiPathsMap);
       log(`Took ${this.stats.dbStartup}ms to connect to the database.`);
       if (config.SHOULD_COMPILE) {
         log(`Took ${this.stats.clientStartup}ms to build client application.`);

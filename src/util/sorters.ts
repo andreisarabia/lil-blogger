@@ -1,8 +1,8 @@
-export const sort_by_date = (
+export const sortByDate = (
   firstDate: string,
   secondDate: string,
   descendingOrder = true
-) => {
+): 1 | 0 | -1 => {
   const aMs = new Date(firstDate).getMilliseconds();
   const bMs = new Date(secondDate).getMilliseconds();
 

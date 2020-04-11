@@ -2,7 +2,7 @@ import { FilterQuery, ObjectID } from 'mongodb';
 
 import Database from '../lib/Database';
 
-import { BaseProps, InsertResult, QueryResults } from '../typings';
+import { BaseProps } from '../typings';
 
 type SearchOptions = {
   collection: string;
@@ -26,17 +26,17 @@ export default class Model<T extends BaseProps> {
     else throw error;
   }
 
-  protected static update_one(
+  protected static updateOne(
     collection: string,
     searchProps: object,
     propsToUpdate: object
   ): Promise<boolean> {
-    return Database.instance(collection).update_one(searchProps, {
+    return Database.instance(collection).updateOne(searchProps, {
       $set: propsToUpdate,
     });
   }
 
-  protected static search_one({
+  protected static searchOne({
     collection,
     criteria,
   }: SearchOptions): Promise<object | null> {
@@ -60,7 +60,7 @@ export default class Model<T extends BaseProps> {
     return Database.instance(collection).delete(criteria);
   }
 
-  public static delete_all(): Promise<boolean> {
-    return Database.instance(this.collectionName).drop_collection();
+  public static deleteAll(): Promise<boolean> {
+    return Database.instance(this.collectionName).dropCollection();
   }
 }

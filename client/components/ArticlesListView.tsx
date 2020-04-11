@@ -20,16 +20,16 @@ export default class ArticlesListView extends React.Component<
 > {
   state = {
     showAddArticleInput: false,
-    articleLinkToAdd: ''
+    articleLinkToAdd: '',
   };
 
-  constructor(props) {
+  constructor(props: ArticlesListViewProps) {
     super(props);
   }
 
   toggle_article_input = () => {
     this.setState(state => ({
-      showAddArticleInput: !state.showAddArticleInput
+      showAddArticleInput: !state.showAddArticleInput,
     }));
   };
 
@@ -40,10 +40,10 @@ export default class ArticlesListView extends React.Component<
 
   render = () => {
     const articleSearchStyle = {
-      display: this.state.showAddArticleInput ? 'none' : 'block'
+      display: this.state.showAddArticleInput ? 'none' : 'block',
     };
     const articleAddStyle = {
-      display: this.state.showAddArticleInput ? 'block' : 'none'
+      display: this.state.showAddArticleInput ? 'block' : 'none',
     };
 
     return (

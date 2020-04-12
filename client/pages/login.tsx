@@ -16,14 +16,14 @@ export default class LoginPage extends React.Component {
     registerPassword: '',
     loginError: '',
     registrationErrors: [],
-    showLoginForm: true
+    showLoginForm: true,
   };
 
-  handle_login = async () => {
+  handleLogin = async () => {
     try {
       const { data } = await axios.post('/api/auth/login', {
         email: this.state.loginEmail,
-        password: this.state.loginPassword
+        password: this.state.loginPassword,
       });
 
       const { msg }: { msg: string } = data;
@@ -35,11 +35,11 @@ export default class LoginPage extends React.Component {
     }
   };
 
-  handle_create_account = async () => {
+  handleCreateAccount = async () => {
     try {
       const { data } = await axios.post('/api/auth/register', {
         email: this.state.registerEmail,
-        password: this.state.registerPassword
+        password: this.state.registerPassword,
       });
 
       const { msg }: { msg: string } = data;
@@ -51,7 +51,7 @@ export default class LoginPage extends React.Component {
     }
   };
 
-  check_second_password = (secondPwd: string) => {
+  checkSecondPassword = (secondPwd: string) => {
     if (this.state.registerPassword !== secondPwd) {
       console.error('Wrong!');
     }
@@ -102,7 +102,7 @@ export default class LoginPage extends React.Component {
               to register
             </p>
 
-            <button type='submit' onClick={this.handle_login}>
+            <button type='submit' onClick={this.handleLogin}>
               Submit
             </button>
 
@@ -141,8 +141,8 @@ export default class LoginPage extends React.Component {
               placeholder='Retype your password'
               minLength={MIN_PASSWORD_LENGTH}
               maxLength={MAX_PASSWORD_LENGTH}
-              onChange={e => this.check_second_password(e.target.value)}
-              onBlur={e => this.check_second_password(e.target.value)}
+              onChange={e => this.checkSecondPassword(e.target.value)}
+              onBlur={e => this.checkSecondPassword(e.target.value)}
             />
 
             <p>
@@ -158,7 +158,7 @@ export default class LoginPage extends React.Component {
               to get back to the login form
             </p>
 
-            <button type='submit' onClick={this.handle_create_account}>
+            <button type='submit' onClick={this.handleCreateAccount}>
               Submit
             </button>
           </div>

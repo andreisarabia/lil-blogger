@@ -27,13 +27,13 @@ export default class ArticlesListView extends React.Component<
     super(props);
   }
 
-  toggle_article_input = () => {
+  toggleArticleInput = () => {
     this.setState(state => ({
       showAddArticleInput: !state.showAddArticleInput,
     }));
   };
 
-  handle_add_article_click = () => {
+  handleAddArticleClick = () => {
     this.props.onArticleAdd(this.state.articleLinkToAdd);
     this.setState({ articleLinkToAdd: '' });
   };
@@ -56,7 +56,7 @@ export default class ArticlesListView extends React.Component<
                 : 'Please add an article to save for later'
               : 'Fetching your articles...'}
           </h2>
-          <button onClick={this.toggle_article_input}>+</button>
+          <button onClick={this.toggleArticleInput}>+</button>
         </div>
 
         <form
@@ -80,7 +80,7 @@ export default class ArticlesListView extends React.Component<
             type='submit'
             value='Add'
             style={articleAddStyle}
-            onClick={this.handle_add_article_click}
+            onClick={this.handleAddArticleClick}
           />
         </form>
 

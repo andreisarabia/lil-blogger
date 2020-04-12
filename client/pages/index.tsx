@@ -32,7 +32,7 @@ export default class HomePage extends React.Component<
     });
   };
 
-  handle_add_article = async (link: string) => {
+  handleAddArticle = async (link: string) => {
     const { data } = await axios.put('http://localhost:3000/api/article/save', {
       url: link,
     });
@@ -48,7 +48,7 @@ export default class HomePage extends React.Component<
     }
   };
 
-  handle_article_focus = (url: string) => {
+  handleArticleFocus = (url: string) => {
     this.setState(state => ({
       viewingArticle: state.articlesList.find(article => article.url === url),
     }));
@@ -62,8 +62,8 @@ export default class HomePage extends React.Component<
         </Head>
         <ArticlesListView
           list={this.state.articlesList}
-          onArticleAdd={this.handle_add_article}
-          onArticleFocus={this.handle_article_focus}
+          onArticleAdd={this.handleAddArticle}
+          onArticleFocus={this.handleArticleFocus}
         />
         <ArticleView focusedArticle={this.state.viewingArticle} />
       </HomePageWrapper>

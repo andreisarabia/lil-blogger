@@ -9,7 +9,7 @@ import { ALLOWED_HTML_TAGS } from '../constants';
 
 import { ParsedArticleResult } from '../typings';
 
-const extract_canonical_url = (html: string): string | null => {
+const extractCanonicalUrl = (html: string): string | null => {
   const linkTags = new JSDOM(html).window.document.querySelectorAll('link');
 
   for (const tag of linkTags) if (tag.rel === 'canonical') return tag.href;
@@ -26,7 +26,7 @@ export const extractUrlData = async (
 
   const html = sanitizeHtml(dirtyHtml, { ADD_TAGS: ['link'] });
   const parsedResult: ParseResult = await Mercury.parse(url, {
-    html: Buffer.from(html, 'utf-8'),
+    html: Buffer.from(html, 'utf-8'), // using a Buffer instead of string maintains special characters
   });
   const timeToParse = Date.now() - (timeToFetch + start);
 
@@ -36,7 +36,7 @@ export const extractUrlData = async (
     timeToParse,
     content: striptags(<string>parsedResult.content, ALLOWED_HTML_TAGS),
     createdOn: new Date().toISOString(),
-    canonicalUrl: extract_canonical_url(html) || url,
+    canonicalUrl: extractCanonicalUrl(html) || url,
     slug: extractSlug(url),
     sizeInBytes: Buffer.byteLength(html),
   };

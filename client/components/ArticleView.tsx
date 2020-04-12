@@ -14,6 +14,7 @@ export default class ArticleView extends React.Component<ArticleViewProps> {
 
   render = () => {
     const { focusedArticle: article } = this.props;
+
     return (
       <ArticleViewSection>
         <h2>{article ? article.title : ''}</h2>

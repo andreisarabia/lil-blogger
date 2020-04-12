@@ -1,5 +1,4 @@
 import { IncomingMessage, ServerResponse } from 'http';
-import { UrlWithParsedQuery } from 'url';
 
 import Koa from 'koa';
 import koaBody from 'koa-body';
@@ -7,11 +6,10 @@ import koaSession from 'koa-session';
 import koaConnect from 'koa-connect';
 import compression from 'compression';
 import nextApp from 'next';
-import chalk from 'chalk';
 
 import Database from './Database';
-import User from '../models/User';
-import { Router, AuthRouter, ArticleRouter } from '../routes';
+import { AuthRouter, ArticleRouter } from '../routes';
+import sessionLogger from '../middlewares/sessionLogger';
 import config from '../config';
 import { isUrl } from '../util/url';
 
@@ -21,14 +19,6 @@ type ContentSecurityPolicy = {
 
 const log = console.log;
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
-const FILE_TYPES = ['_next', '.ico', '.json'];
-
-// helpers
-const hasSession = (ctx: Koa.ParameterizedContext) =>
-  Boolean(ctx.cookies.get('__app'));
-
-const isStaticFile = (path: string) =>
-  FILE_TYPES.some(type => path.includes(type));
 
 export default class Server {
   private static singleton = new Server();
@@ -104,69 +94,7 @@ export default class Server {
   }
 
   private attachLoggerMiddleware() {
-    const defaultApiHeaders = {
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'deny',
-      'X-XSS-Protection': '1; mode=block',
-    };
-
-    this.app.use(async (ctx: Koa.ParameterizedContext, next: Koa.Next) => {
-      const start = Date.now();
-      const { path } = ctx;
-
-      ctx.set(defaultApiHeaders);
-
-      try {
-        if (isStaticFile(path)) return await next(); // handled by Next
-
-        if (path.startsWith('/login') || path.startsWith('/api/auth')) {
-          if (path.startsWith('/login'))
-            ctx.session.views = ctx.session.views + 1 || 1;
-
-          await ctx.session.manuallyCommit();
-
-          return await next();
-        }
-
-        if (hasSession(ctx) && Router.isAuthenticated(ctx)) {
-          if (!ctx.session.user) {
-            const cookie = ctx.cookies.get(Router.authCookieName) || '';
-            const user = await User.find({ cookie });
-
-            if (cookie && user) {
-              ctx.session.user = user;
-            } else {
-              ctx.session = null;
-              ctx.redirect('/login');
-            }
-          }
-
-          if (!path.startsWith('/api')) {
-            // log only non-API calls as a `view`
-            ctx.session.views = ctx.session.views + 1 || 1;
-
-            await ctx.session.manuallyCommit();
-          }
-
-          return await next();
-        }
-
-        ctx.redirect('/login');
-      } finally {
-        const xResponseTime = `${Date.now() - start}ms`;
-        const { 'user-agent': ua, referer = '' } = ctx.header;
-        const timestamp = new Date().toLocaleString();
-
-        const logMsg = `${ctx.ip} - - [${timestamp}] ${ctx.method} ${path} ${ctx.status} ${xResponseTime} ${referer} - ${ua}`;
-
-        if (config.IS_DEV) ctx.set('X-Response-Time', xResponseTime);
-
-        if (ctx.status >= 400) log(chalk.red(logMsg));
-        else if (ctx.status >= 300) log(chalk.inverse(logMsg));
-        else if (isStaticFile(path)) log(chalk.cyan(logMsg));
-        else log(chalk.green(logMsg));
-      }
-    });
+    this.app.use(sessionLogger());
   }
 
   private attachApiRoutes(): void {
@@ -198,7 +126,7 @@ export default class Server {
 
   private attachErrorHandler(): void {
     this.app.on('error', err => {
-      log(err instanceof Error ? err.stack : err, new Date().toLocaleString());
+      log(err instanceof Error ? err.stack : err, new Date().toISOString());
     });
   }
 

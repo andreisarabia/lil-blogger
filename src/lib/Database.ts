@@ -4,11 +4,9 @@ import {
   FindOneOptions,
   UpdateQuery,
   InsertOneWriteOpResult,
-  InsertWriteOpResult,
   FindAndModifyWriteOpResultObject,
   UpdateWriteOpResult,
   MongoClient,
-  ObjectId,
 } from 'mongodb';
 
 import { QueryResults, BaseProps } from '../typings';
@@ -22,10 +20,10 @@ export default class Database {
   private static client: MongoClient | null = null;
   private static dbCache = new Map<string, Database>();
 
-  private dbCollection: Collection;
+  #dbCollection: Collection;
 
-  private constructor(private collection: string) {
-    this.dbCollection = (<MongoClient>Database.client)
+  private constructor(collection: string) {
+    this.#dbCollection = (<MongoClient>Database.client)
       .db()
       .collection(collection);
   }
@@ -34,12 +32,13 @@ export default class Database {
     dataObj: T
   ): Promise<[Error | null, QueryResults | null]> {
     try {
-      const result = await this.dbCollection.insertOne(dataObj);
+      const {
+        ops,
+      }: InsertOneWriteOpResult<any> = await this.#dbCollection.insertOne(
+        dataObj
+      );
 
-      return [
-        null,
-        <QueryResults>{ ops: (<InsertOneWriteOpResult<any>>result).ops },
-      ];
+      return [null, <QueryResults>{ ops }];
     } catch (error) {
       return [error, null];
     }
@@ -52,9 +51,9 @@ export default class Database {
     let results: object | object[] | any[] | null;
 
     if (options?.limit === 1) {
-      results = await this.dbCollection.findOne(criteria);
+      results = await this.#dbCollection.findOne(criteria);
     } else {
-      results = await this.dbCollection.find(criteria, options).toArray();
+      results = await this.#dbCollection.find(criteria, options).toArray();
     }
 
     return results;
@@ -64,20 +63,20 @@ export default class Database {
     searchProps: object,
     props: UpdateQuery<any>
   ): Promise<boolean> {
-    const result = await this.dbCollection.updateOne(searchProps, props);
+    const result = await this.#dbCollection.updateOne(searchProps, props);
 
     return (<UpdateWriteOpResult>result).result.ok === 1;
   }
 
   public async delete(criteria: FilterQuery<object>): Promise<boolean> {
-    const result = await this.dbCollection.findOneAndDelete(criteria);
+    const result = await this.#dbCollection.findOneAndDelete(criteria);
 
     return (<FindAndModifyWriteOpResultObject<any>>result).ok === 1;
   }
 
   public async dropCollection(): Promise<boolean> {
     try {
-      await this.dbCollection.drop();
+      await this.#dbCollection.drop();
       return true;
     } catch (error) {
       console.error(error);

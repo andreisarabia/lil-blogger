@@ -10,16 +10,19 @@ import { ArticleProps, ArticlePropsKey } from '../typings';
 export default class Article extends Model<ArticleProps> {
   protected static readonly collectionName = 'articles';
 
-  protected constructor(protected props: ArticleProps) {
+  #props: ArticleProps;
+
+  protected constructor(props: ArticleProps) {
     super(Article.collectionName);
+    this.#props = props;
   }
 
   public get id(): ObjectId {
-    return <ObjectId>this.props._id;
+    return <ObjectId>this.#props._id;
   }
 
   public get info(): Omit<ArticleProps, '_id' | 'userId'> {
-    const { _id, userId, ...publicProps } = this.props;
+    const { _id, userId, ...publicProps } = this.#props;
 
     return publicProps;
   }
@@ -28,25 +31,26 @@ export default class Article extends Model<ArticleProps> {
    * Returns timestamp in UTC string
    */
   public get createdOn(): string {
-    return this.props.createdOn;
+    return this.#props.createdOn;
   }
 
   private updateProps<Key extends ArticlePropsKey>(
     key: Key,
     value: ArticleProps[Key]
   ) {
-    this.props[key] = value;
+    this.#props[key] = value;
   }
 
-  private async save(): Promise<void> {
-    this.props = await super.insert(this.props);
+  private async save(): Promise<this> {
+    this.#props = await super.insert(this.#props);
+    return this;
   }
 
   public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
     let updatedProps: { [key: string]: any } = {};
 
     for (const key of <ArticlePropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.props)) continue;
+      if (!(key in this.#props)) continue;
 
       const value = propsToUpdate[key];
 
@@ -57,8 +61,7 @@ export default class Article extends Model<ArticleProps> {
         const newProps = await extractUrlData(<string>value);
 
         updatedProps = { ...updatedProps, ...newProps };
-        this.props = { ...this.props, ...updatedProps };
-        break;
+        this.#props = { ...this.#props, ...updatedProps };
       } else {
         this.updateProps(key, value);
         updatedProps[key] = value;
@@ -74,15 +77,13 @@ export default class Article extends Model<ArticleProps> {
 
   public static async create(url: string, user: User): Promise<Article> {
     const cleanData = await extractUrlData(url);
-    const newArticle = new Article({
+
+    return new Article({
       ...cleanData,
       userId: user.id,
       uniqueId: uuidv4(),
-    });
-
-    await newArticle.save();
-
-    return newArticle;
+      tags: [],
+    }).save();
   }
 
   public static async find(

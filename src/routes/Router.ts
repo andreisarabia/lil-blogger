@@ -1,16 +1,13 @@
 import Koa from 'koa';
 import KoaRouter from 'koa-router';
 
-export default class Router {
+export default abstract class Router {
   public static readonly authCookieName = '_app_auth';
 
   protected instance: KoaRouter;
   protected allPathsWithMethods = new Map<string, string[]>();
 
-  protected constructor(
-    prefix: string,
-    { requiresAuth } = { requiresAuth: true }
-  ) {
+  constructor(prefix: string, { requiresAuth } = { requiresAuth: true }) {
     this.instance = new KoaRouter({ prefix: `/api${prefix}` });
 
     this.instance.use(async (ctx, next) => {

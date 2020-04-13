@@ -14,34 +14,37 @@ const SALT_ROUNDS = 10;
 export default class User extends Model<UserProps> {
   protected static readonly collectionName = 'users';
 
-  protected constructor(protected props: UserProps) {
+  #props: UserProps;
+
+  protected constructor(props: UserProps) {
     super(User.collectionName);
+    this.#props = props;
   }
 
   public get id(): ObjectId {
-    return <ObjectId>this.props._id;
+    return <ObjectId>this.#props._id;
   }
 
   private get password(): string {
-    return this.props.password;
+    return this.#props.password;
   }
 
   private updateProps<Key extends UserPropsKey>(
     key: Key,
     value: UserProps[Key]
   ) {
-    this.props[key] = value;
+    this.#props[key] = value;
   }
 
   private async save(): Promise<void> {
-    this.props = await super.insert(this.props);
+    this.#props = await super.insert(this.#props);
   }
 
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
     const updatedProps: { [key: string]: any } = {};
 
     for (const key of <UserPropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.props)) continue;
+      if (!(key in this.#props)) continue;
 
       const value = propsToUpdate[key];
 

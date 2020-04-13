@@ -14,7 +14,7 @@ type AccountLoginParameters = {
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
 
 export default class AuthRouter extends Router {
-  private readonly sessionConfig = {
+  readonly #sessionConfig = {
     key: '__app',
     maxAge: ONE_DAY_IN_MS,
     overwrite: true,
@@ -45,16 +45,17 @@ export default class AuthRouter extends Router {
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { email = '', password = '' } = <AccountLoginParameters>(
-      ctx.request.body
-    );
+    const {
+      email = '',
+      password = '',
+    }: AccountLoginParameters = ctx.request.body;
     const user: User | null = await User.validateCredentials(email, password);
 
     if (user) {
       const cookie = uuidv4();
 
       await user.update({ cookie });
-      ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, this.#sessionConfig);
 
       ctx.body = { error: null, msg: 'ok' };
     } else {
@@ -69,9 +70,10 @@ export default class AuthRouter extends Router {
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
-    const { email = '', password = '' } = <AccountLoginParameters>(
-      ctx.request.body
-    );
+    const {
+      email = '',
+      password = '',
+    }: AccountLoginParameters = ctx.request.body;
     const errors = await User.verifyUserData(email, password);
 
     if (errors) {
@@ -83,7 +85,7 @@ export default class AuthRouter extends Router {
 
       await User.create(email, password, cookie);
 
-      ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, this.#sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };
     }

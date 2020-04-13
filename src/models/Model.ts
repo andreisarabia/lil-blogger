@@ -10,17 +10,17 @@ type SearchOptions = {
   limit?: number;
 };
 
-export default class Model<T extends BaseProps> {
+export default abstract class Model<T extends BaseProps> {
   protected static readonly collectionName: string;
 
-  private db: Database;
+  #db: Database;
 
   protected constructor(collection: string) {
-    this.db = Database.instance(collection);
+    this.#db = Database.instance(collection);
   }
 
-  protected async insert<T extends BaseProps>(props: T): Promise<T> {
-    const [error, results] = await this.db.insert({ ...props });
+  protected async insert<T>(props: T): Promise<T> {
+    const [error, results] = await this.#db.insert({ ...props });
 
     if (results) return <T>{ ...results.ops[0] };
     else throw error;

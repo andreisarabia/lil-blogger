@@ -4,11 +4,29 @@ import Router from './Router';
 import Article from '../models/Article';
 import User from '../models/User';
 import config from '../config';
-import { sortByDate, isUrl } from '../util';
+import {
+  sortByDate,
+  isAlphanumericArray,
+  isValidUuid,
+  isUrl,
+  toUniqueArray,
+} from '../util';
 
 type ParseRequestOptions = {
   url: string;
 };
+
+type AddTagsRequestOptions = {
+  articleId: string;
+  tags: string[];
+};
+
+type SearchArticleOptions = ParseRequestOptions & AddTagsRequestOptions;
+
+const MAX_TAG_LENGTH = 20;
+
+const areValidTags = (tags: string[]) =>
+  isAlphanumericArray(tags) && tags.every(tag => tag.length <= MAX_TAG_LENGTH);
 
 export default class ArticleRouter extends Router {
   constructor() {
@@ -17,6 +35,8 @@ export default class ArticleRouter extends Router {
     this.instance
       .get('/list', ctx => this.sendArticles(ctx))
       .put('/save', ctx => this.saveArticle(ctx))
+      .post('/add-tags', ctx => this.addTags(ctx))
+      .post('/search-articles', ctx => this.searchArticles(ctx))
       .delete('/', ctx => this.deleteArticle(ctx))
       .delete('/all', ctx => this.deleteAllArticles(ctx));
   }
@@ -38,7 +58,7 @@ export default class ArticleRouter extends Router {
   }
 
   private async saveArticle(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url } = <ParseRequestOptions>ctx.request.body;
+    const { url }: ParseRequestOptions = ctx.request.body;
 
     if (isUrl(url)) {
       const user: User = ctx.session.user;
@@ -59,8 +79,44 @@ export default class ArticleRouter extends Router {
     }
   }
 
+  private async addTags(ctx: Koa.ParameterizedContext): Promise<void> {
+    const { articleId = '', tags }: AddTagsRequestOptions = ctx.request.body;
+
+    if (isValidUuid(articleId) && areValidTags(tags)) {
+      const article = await Article.find({
+        userId: (<User>ctx.session.user).id,
+        uniqueId: articleId,
+      });
+
+      if (article) {
+        const newTags = toUniqueArray(
+          [...article.info.tags, ...tags].map(tag => tag.trim())
+        );
+
+        await article.update({ tags: newTags });
+
+        ctx.body = {
+          error: null,
+          msg: 'ok',
+          tags,
+        };
+      }
+    }
+
+    ctx.status = 400;
+
+    ctx.body = {
+      error: 'Cannot apply given tags to the article.',
+      msg: null,
+    };
+  }
+
+  private async searchArticles(ctx: Koa.ParameterizedContext): Promise<void> {
+    const { url, articleId, tags }: SearchArticleOptions = ctx.request.body;
+  }
+
   private async deleteArticle(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url } = <ParseRequestOptions>ctx.request.body;
+    const { url }: ParseRequestOptions = ctx.request.body;
     const successfullyDeleted = await Article.delete(
       <User>ctx.session.user,
       url

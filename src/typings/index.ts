@@ -5,13 +5,6 @@ export interface BaseProps {
   _id?: ObjectId;
 }
 
-export type QueryResults = {
-  _id?: ObjectId;
-  insertedId?: string;
-  insertedCount?: number;
-  ops: object[];
-};
-
 export interface ArticleProps extends BaseProps, ParseResult {
   canonicalUrl: string;
   createdOn: string; // UTC
@@ -21,7 +14,7 @@ export interface ArticleProps extends BaseProps, ParseResult {
   timeToFetch: number;
   timeToParse: number;
   sizeInBytes: number;
-  tags: string[];
+  tags: string[] | string;
 }
 
 export type ArticlePropsKey = keyof ArticleProps;

@@ -14,37 +14,23 @@ const SALT_ROUNDS = 10;
 export default class User extends Model<UserProps> {
   protected static readonly collectionName = 'users';
 
-  #props: UserProps;
-
   protected constructor(props: UserProps) {
-    super(User.collectionName);
-    this.#props = props;
+    super(props, User.collectionName);
   }
 
   public get id(): ObjectId {
-    return <ObjectId>this.#props._id;
+    return <ObjectId>this.props._id;
   }
 
   private get password(): string {
-    return this.#props.password;
-  }
-
-  private updateProps<Key extends UserPropsKey>(
-    key: Key,
-    value: UserProps[Key]
-  ) {
-    this.#props[key] = value;
-  }
-
-  private async save(): Promise<void> {
-    this.#props = await super.insert(this.#props);
+    return this.props.password;
   }
 
   public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
-    const updatedProps: { [key: string]: any } = {};
+    const updatedProps: { [key: string]: UserProps[UserPropsKey] } = {};
 
     for (const key of <UserPropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.#props)) continue;
+      if (!(key in this.props)) continue;
 
       const value = propsToUpdate[key];
 
@@ -78,14 +64,14 @@ export default class User extends Model<UserProps> {
       criteria,
     });
 
-    return userData ? new User(<UserProps>userData) : null;
+    return userData ? new User(userData) : null;
   }
 
   public static async validateCredentials(
     email: string,
     password: string
   ): Promise<User | null> {
-    const user: User | null = await this.find({ email });
+    const user = await this.find({ email });
     const isValidPassword = await bcrypt.compare(
       password,
       user ? user.password : ''
@@ -121,8 +107,11 @@ export default class User extends Model<UserProps> {
   }
 
   private static async exists(email: string): Promise<boolean> {
-    const user = await this.find({ email });
+    const userData = await super.searchOne<UserProps>({
+      collection: this.collectionName,
+      criteria: { email },
+    });
 
-    return Boolean(user);
+    return Boolean(userData);
   }
 }

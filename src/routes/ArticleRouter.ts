@@ -21,8 +21,6 @@ type AddTagsRequestOptions = {
   tags: string[];
 };
 
-type SearchArticleOptions = ParseRequestOptions & AddTagsRequestOptions;
-
 const MAX_TAG_LENGTH = 20;
 
 const areValidTags = (tags: string[]) =>
@@ -35,7 +33,7 @@ export default class ArticleRouter extends Router {
     this.instance
       .get('/list', ctx => this.sendArticles(ctx))
       .put('/save', ctx => this.saveArticle(ctx))
-      .post('/add-tags', ctx => this.addTags(ctx))
+      .post('/add-tags', ctx => this.addTagsToArticle(ctx))
       .post('/search-articles', ctx => this.searchArticles(ctx))
       .delete('/', ctx => this.deleteArticle(ctx))
       .delete('/all', ctx => this.deleteAllArticles(ctx));
@@ -79,7 +77,7 @@ export default class ArticleRouter extends Router {
     }
   }
 
-  private async addTags(ctx: Koa.ParameterizedContext): Promise<void> {
+  private async addTagsToArticle(ctx: Koa.ParameterizedContext): Promise<void> {
     const { articleId = '', tags }: AddTagsRequestOptions = ctx.request.body;
 
     if (isValidUuid(articleId) && areValidTags(tags)) {
@@ -89,9 +87,10 @@ export default class ArticleRouter extends Router {
       });
 
       if (article) {
-        const newTags = toUniqueArray(
-          [...article.info.tags, ...tags].map(tag => tag.trim())
-        );
+        const newTags = toUniqueArray([
+          ...article.tags,
+          ...tags.map(tag => tag.trim()),
+        ]).sort();
 
         await article.update({ tags: newTags });
 
@@ -101,18 +100,30 @@ export default class ArticleRouter extends Router {
           tags,
         };
       }
+    } else {
+      ctx.status = 400;
+
+      ctx.body = {
+        error: 'Cannot apply given tags to the article.',
+        msg: null,
+      };
     }
-
-    ctx.status = 400;
-
-    ctx.body = {
-      error: 'Cannot apply given tags to the article.',
-      msg: null,
-    };
   }
 
   private async searchArticles(ctx: Koa.ParameterizedContext): Promise<void> {
-    const { url, articleId, tags }: SearchArticleOptions = ctx.request.body;
+    const { tag }: { tag: string } = ctx.request.body;
+
+    const searchedArticles = await Article.findAll({
+      userId: (<User>ctx.session.user).id,
+      tags: tag,
+    });
+
+    if (searchedArticles) {
+      const articles = searchedArticles.map(article => article.info);
+
+      ctx.body = { error: null, msg: 'ok', articles };
+    } else {
+    }
   }
 
   private async deleteArticle(ctx: Koa.ParameterizedContext): Promise<void> {

@@ -14,7 +14,7 @@ type AccountLoginParameters = {
 const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
 
 export default class AuthRouter extends Router {
-  readonly #sessionConfig = {
+  private readonly sessionConfig = {
     key: '__app',
     maxAge: ONE_DAY_IN_MS,
     overwrite: true,
@@ -55,7 +55,7 @@ export default class AuthRouter extends Router {
       const cookie = uuidv4();
 
       await user.update({ cookie });
-      ctx.cookies.set(Router.authCookieName, cookie, this.#sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { error: null, msg: 'ok' };
     } else {
@@ -85,7 +85,7 @@ export default class AuthRouter extends Router {
 
       await User.create(email, password, cookie);
 
-      ctx.cookies.set(Router.authCookieName, cookie, this.#sessionConfig);
+      ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };
     }

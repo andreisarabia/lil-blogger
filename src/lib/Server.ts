@@ -23,12 +23,12 @@ const ONE_DAY_IN_MS = 60 * 60 * 24 * 1000;
 export default class Server {
   private static singleton = new Server();
 
-  #app = new Koa();
-  readonly #port = parseInt(<string>process.env.APP_PORT, 10) || 3000;
-  #apiPathsMap = new Map<string, string[]>();
-  #clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
+  private app = new Koa();
+  private readonly port = parseInt(<string>process.env.APP_PORT, 10) || 3000;
+  private apiPathsMap = new Map<string, string[]>();
+  private clientApp = nextApp({ dir: './client', dev: config.IS_DEV });
 
-  readonly #csp: ContentSecurityPolicy = {
+  private readonly csp: ContentSecurityPolicy = {
     'default-src': ['self', 'https://fonts.gstatic.com'],
     'script-src': ['self', 'unsafe-inline'],
     'style-src': [
@@ -39,20 +39,20 @@ export default class Server {
     ],
   };
 
-   #stats: { [k: string]: number | null } = {
+  private stats: { [k: string]: number | null } = {
     dbStartup: null,
     clientStartup: null,
     appStartup: null,
   };
 
   private constructor() {
-    this.#app.keys = ['_app'];
+    this.app.keys = ['_app'];
   }
 
   private get cspHeader(): string {
     let header = '';
 
-    for (const [src, directives] of Object.entries(this.#csp)) {
+    for (const [src, directives] of Object.entries(this.csp)) {
       const preppedDirectives = directives.map(directive =>
         isUrl(directive) ? directive : `'${directive}'`
       );
@@ -67,14 +67,14 @@ export default class Server {
 
   private async initializeClientApp(): Promise<void> {
     const start = Date.now();
-    await this.#clientApp.prepare();
-    this.#stats.clientStartup = Date.now() - start;
+    await this.clientApp.prepare();
+    this.stats.clientStartup = Date.now() - start;
   }
 
   private async initializeDatabase(): Promise<void> {
     const start = Date.now();
     await Database.initialize();
-    this.#stats.dbStartup = Date.now() - start;
+    this.stats.dbStartup = Date.now() - start;
   }
 
   private attachInitialRequestMiddlewares() {
@@ -87,14 +87,14 @@ export default class Server {
       autoCommit: false,
     }; // TODO: make secure in prod when HTTPS is needed
 
-    this.#app
-      .use(koaSession(sessionConfig, this.#app))
+    this.app
+      .use(koaSession(sessionConfig, this.app))
       .use(koaBody({ json: true }))
       .use(koaConnect(compression()));
   }
 
   private attachLoggerMiddleware() {
-    this.#app.use(sessionLogger());
+    this.app.use(sessionLogger());
   }
 
   private attachApiRoutes(): void {
@@ -102,9 +102,9 @@ export default class Server {
 
     for (const { pathsMap, middleware } of routers) {
       for (const [path, methods] of pathsMap)
-        this.#apiPathsMap.set(path, methods);
+        this.apiPathsMap.set(path, methods);
 
-      this.#app.use(middleware.routes()).use(middleware.allowedMethods());
+      this.app.use(middleware.routes()).use(middleware.allowedMethods());
     }
   }
 
@@ -115,9 +115,9 @@ export default class Server {
     const clientAppHandler: (
       req: IncomingMessage,
       res: ServerResponse
-    ) => Promise<void> = this.#clientApp.getRequestHandler();
+    ) => Promise<void> = this.clientApp.getRequestHandler();
 
-    this.#app.use(async ctx => {
+    this.app.use(async ctx => {
       ctx.set(defaultClientHeaders);
       await clientAppHandler(ctx.req, ctx.res);
       ctx.respond = false;
@@ -125,7 +125,7 @@ export default class Server {
   }
 
   private attachErrorHandler(): void {
-    this.#app.on('error', err => {
+    this.app.on('error', err => {
       log(err instanceof Error ? err.stack : err, new Date().toISOString());
     });
   }
@@ -152,13 +152,13 @@ export default class Server {
   }
 
   public start(): void {
-    this.#app.listen(this.#port, () => {
-      log(`Listening on port ${this.#port}...`);
-      log('Content Security Policy: ', this.#csp);
-      log('Registered API paths:', this.#apiPathsMap);
-      log(`Took ${this.#stats.dbStartup}ms to connect to the database.`);
+    this.app.listen(this.port, () => {
+      log(`Listening on port ${this.port}...`);
+      log('Content Security Policy: ', this.csp);
+      log('Registered API paths:', this.apiPathsMap);
+      log(`Took ${this.stats.dbStartup}ms to connect to the database.`);
       if (config.SHOULD_COMPILE) {
-        log(`Took ${this.#stats.clientStartup}ms to build client application.`);
+        log(`Took ${this.stats.clientStartup}ms to build client application.`);
       }
     });
   }

@@ -4,13 +4,7 @@ import Router from './Router';
 import Article from '../models/Article';
 import User from '../models/User';
 import config from '../config';
-import {
-  sortByDate,
-  isAlphanumericArray,
-  isValidUuid,
-  isUrl,
-  toUniqueArray,
-} from '../util';
+import { sortByDate, isAlphanumericArray, isValidUuid, isUrl } from '../util';
 
 type ParseRequestOptions = {
   url: string;
@@ -23,8 +17,10 @@ type AddTagsRequestOptions = {
 
 const MAX_TAG_LENGTH = 20;
 
-const areValidTags = (tags: string[]) =>
-  isAlphanumericArray(tags) && tags.every(tag => tag.length <= MAX_TAG_LENGTH);
+const areValidTagsRequestParams = (articleId: string, tags: string[]) =>
+  isValidUuid(articleId) &&
+  isAlphanumericArray(tags) &&
+  tags.every(tag => tag.length <= MAX_TAG_LENGTH);
 
 export default class ArticleRouter extends Router {
   constructor() {
@@ -40,12 +36,11 @@ export default class ArticleRouter extends Router {
   }
 
   private async sendArticles(ctx: Koa.ParameterizedContext): Promise<void> {
-    const allArticles: Article[] | null = await Article.findAll({
-      userId: (<User>ctx.session.user).id,
-    });
+    const user: User = ctx.session.user;
+    const results = await Article.findAll({ userId: user.id });
 
-    if (allArticles) {
-      const articles = allArticles
+    if (results) {
+      const articles = results
         .sort((a, b) => sortByDate(a.createdOn, b.createdOn))
         .map(article => article.info);
 
@@ -61,13 +56,10 @@ export default class ArticleRouter extends Router {
     if (isUrl(url)) {
       const user: User = ctx.session.user;
 
-      let article = await Article.find({ userId: user.id });
+      let article = await Article.find({ userId: user.id, url });
 
-      if (article) {
-        await article.update({ canonicalUrl: url });
-      } else {
-        article = await Article.create(url, user);
-      }
+      if (article) await article.setCanonicalUrl(url).update();
+      else article = await Article.create(url, user);
 
       ctx.body = { error: null, msg: 'ok', article: article.info };
     } else {
@@ -80,46 +72,37 @@ export default class ArticleRouter extends Router {
   private async addTagsToArticle(ctx: Koa.ParameterizedContext): Promise<void> {
     const { articleId = '', tags }: AddTagsRequestOptions = ctx.request.body;
 
-    if (isValidUuid(articleId) && areValidTags(tags)) {
+    if (areValidTagsRequestParams(articleId, tags)) {
+      const user: User = ctx.session.user;
       const article = await Article.find({
-        userId: (<User>ctx.session.user).id,
+        userId: user.id,
         uniqueId: articleId,
       });
 
       if (article) {
-        const newTags = toUniqueArray([
-          ...article.tags,
-          ...tags.map(tag => tag.trim()),
-        ]).sort();
+        await article.addTags(tags).update();
 
-        await article.update({ tags: newTags });
+        ctx.body = { error: null, msg: 'ok', tags };
 
-        ctx.body = {
-          error: null,
-          msg: 'ok',
-          tags,
-        };
+        return;
       }
-    } else {
-      ctx.status = 400;
-
-      ctx.body = {
-        error: 'Cannot apply given tags to the article.',
-        msg: null,
-      };
     }
+
+    ctx.status = 400;
+
+    ctx.body = {
+      error: 'Cannot apply given tags to the article.',
+      msg: null,
+    };
   }
 
   private async searchArticles(ctx: Koa.ParameterizedContext): Promise<void> {
     const { tag }: { tag: string } = ctx.request.body;
+    const user: User = ctx.session.user;
+    const results = await Article.findAll({ userId: user.id, tags: tag });
 
-    const searchedArticles = await Article.findAll({
-      userId: (<User>ctx.session.user).id,
-      tags: tag,
-    });
-
-    if (searchedArticles) {
-      const articles = searchedArticles.map(article => article.info);
+    if (results) {
+      const articles = results.map(article => article.info);
 
       ctx.body = { error: null, msg: 'ok', articles };
     } else {

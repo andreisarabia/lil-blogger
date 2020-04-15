@@ -17,8 +17,6 @@ export interface ArticleProps extends BaseProps, ParseResult {
   tags: string[] | string;
 }
 
-export type ArticlePropsKey = keyof ArticleProps;
-
 export type ParsedArticleResult = Omit<ArticleProps, 'uniqueId' | 'tags'>;
 
 export interface UserProps extends BaseProps {
@@ -27,5 +25,3 @@ export interface UserProps extends BaseProps {
   uniqueId: string;
   cookie: string;
 }
-
-export type UserPropsKey = keyof UserProps;

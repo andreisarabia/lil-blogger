@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Model from './Model';
 import { isEmail, isSafePassword } from '../util/validators';
 
-import { UserProps, UserPropsKey } from '../typings';
+import { UserProps } from '../typings';
 
 const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 50;
@@ -26,21 +26,14 @@ export default class User extends Model<UserProps> {
     return this.props.password;
   }
 
-  public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
-    const updatedProps: { [key: string]: UserProps[UserPropsKey] } = {};
+  public setCookie(cookie: string): this {
+    this.props.cookie = cookie;
 
-    for (const key of <UserPropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.props)) continue;
+    return this;
+  }
 
-      const value = propsToUpdate[key];
-
-      if (value === undefined) continue;
-
-      this.updateProps(key, value);
-      updatedProps[key] = value;
-    }
-
-    await Model.updateOne(User.collectionName, { _id: this.id }, updatedProps);
+  public async update(): Promise<void> {
+    await Model.updateOne(User.collectionName, { _id: this.id }, this.props);
   }
 
   public static async create(
@@ -67,7 +60,7 @@ export default class User extends Model<UserProps> {
     return userData ? new User(userData) : null;
   }
 
-  public static async validateCredentials(
+  public static async attemptLogin(
     email: string,
     password: string
   ): Promise<User | null> {

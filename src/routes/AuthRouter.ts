@@ -49,12 +49,12 @@ export default class AuthRouter extends Router {
       email = '',
       password = '',
     }: AccountLoginParameters = ctx.request.body;
-    const user: User | null = await User.validateCredentials(email, password);
+    const user: User | null = await User.attemptLogin(email, password);
 
     if (user) {
       const cookie = uuidv4();
 
-      await user.update({ cookie });
+      await user.setCookie(cookie).update();
       ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { error: null, msg: 'ok' };
@@ -84,7 +84,6 @@ export default class AuthRouter extends Router {
       const cookie = uuidv4();
 
       await User.create(email, password, cookie);
-
       ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };

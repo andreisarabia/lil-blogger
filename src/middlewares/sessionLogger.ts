@@ -64,7 +64,8 @@ const logRequest = (ctx: Koa.ParameterizedContext, xResponseTime: string) => {
 
   if (referer) logMsg += ` ${referer}`;
   logMsg += ` ${ua}`;
-  if (ctx.session && ctx.session.views) logMsg += ` (${ctx.session.views})`;
+  if (!isNextFile(path) && ctx.session?.views)
+    logMsg += ` (${ctx.session.views})`;
 
   if (status >= 400) log(chalk.red(logMsg));
   else if (status >= 300) log(chalk.inverse(logMsg));

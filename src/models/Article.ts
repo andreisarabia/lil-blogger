@@ -3,9 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 import Model from './Model';
 import User from './User';
-import { extractUrlData } from '../util/parser';
+import { extractUrlData, toUniqueArray } from '../util';
 
-import { ArticleProps, ArticlePropsKey } from '../typings';
+import { ArticleProps } from '../typings';
 
 export default class Article extends Model<ArticleProps> {
   protected static readonly collectionName = 'articles';
@@ -35,32 +35,44 @@ export default class Article extends Model<ArticleProps> {
     return this.props.createdOn;
   }
 
-  public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
-    let updatedProps: { [key: string]: ArticleProps[ArticlePropsKey] } = {};
+  public get url(): string {
+    return this.props.url;
+  }
 
-    for (const key of <ArticlePropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.props)) continue;
+  public get canonicalUrl(): string {
+    return this.props.canonicalUrl;
+  }
 
-      const value = propsToUpdate[key];
+  private shouldRefreshArticleData(): boolean {
+    return this.url !== this.canonicalUrl;
+  }
 
-      if (value === undefined) continue;
+  public setCanonicalUrl(canonicalUrl: string): this {
+    this.props.canonicalUrl = canonicalUrl;
 
-      if (key === 'canonicalUrl') {
-        // we want to get the original location's refreshed content
-        const newProps = await extractUrlData(<string>value);
+    return this;
+  }
 
-        updatedProps = { ...updatedProps, ...newProps };
-        this.props = { ...this.props, ...updatedProps };
-      } else {
-        this.updateProps(key, value);
-        updatedProps[key] = value;
-      }
+  public addTags(newTags: string[]): this {
+    this.props.tags = toUniqueArray([
+      ...this.props.tags,
+      ...newTags.map(tag => tag.trim()),
+    ]).sort();
+
+    return this;
+  }
+
+  public async update(): Promise<void> {
+    if (this.shouldRefreshArticleData()) {
+      const articleData = await extractUrlData(this.props.canonicalUrl);
+
+      this.props = { ...this.props, ...articleData };
     }
 
-    await Model.updateOne(
+    await Article.updateOne(
       Article.collectionName,
       { _id: this.id },
-      updatedProps
+      this.props
     );
   }
 

@@ -36,10 +36,10 @@ export default abstract class Model<T extends BaseProps> {
   protected static updateOne<T>(
     collection: string,
     searchProps: Partial<T>,
-    propsToUpdate: Partial<T>
+    props: T
   ): Promise<boolean> {
     return Database.instance(collection).updateOne(searchProps, {
-      $set: propsToUpdate,
+      $set: props,
     });
   }
 

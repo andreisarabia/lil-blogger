@@ -20,30 +20,30 @@ export default class ArticlesListView extends React.Component<
 > {
   state = {
     showAddArticleInput: false,
-    articleLinkToAdd: ''
+    articleLinkToAdd: '',
   };
 
-  constructor(props) {
+  constructor(props: ArticlesListViewProps) {
     super(props);
   }
 
-  toggle_article_input = () => {
+  toggleArticleInput = () => {
     this.setState(state => ({
-      showAddArticleInput: !state.showAddArticleInput
+      showAddArticleInput: !state.showAddArticleInput,
     }));
   };
 
-  handle_add_article_click = () => {
+  handleAddArticleClick = () => {
     this.props.onArticleAdd(this.state.articleLinkToAdd);
     this.setState({ articleLinkToAdd: '' });
   };
 
   render = () => {
     const articleSearchStyle = {
-      display: this.state.showAddArticleInput ? 'none' : 'block'
+      display: this.state.showAddArticleInput ? 'none' : 'block',
     };
     const articleAddStyle = {
-      display: this.state.showAddArticleInput ? 'block' : 'none'
+      display: this.state.showAddArticleInput ? 'block' : 'none',
     };
 
     return (
@@ -56,7 +56,7 @@ export default class ArticlesListView extends React.Component<
                 : 'Please add an article to save for later'
               : 'Fetching your articles...'}
           </h2>
-          <button onClick={this.toggle_article_input}>+</button>
+          <button onClick={this.toggleArticleInput}>+</button>
         </div>
 
         <form
@@ -80,7 +80,7 @@ export default class ArticlesListView extends React.Component<
             type='submit'
             value='Add'
             style={articleAddStyle}
-            onClick={this.handle_add_article_click}
+            onClick={this.handleAddArticleClick}
           />
         </form>
 

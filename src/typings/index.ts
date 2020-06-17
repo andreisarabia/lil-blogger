@@ -14,11 +14,10 @@ export interface ArticleProps extends BaseProps, ParseResult {
   timeToFetch: number;
   timeToParse: number;
   sizeInBytes: number;
+  tags: string[] | string;
 }
 
-export type ArticlePropsKey = keyof ArticleProps;
-
-export type ParsedArticleResult = Omit<ArticleProps, 'uniqueId'>;
+export type ParsedArticleResult = Omit<ArticleProps, 'uniqueId' | 'tags'>;
 
 export interface UserProps extends BaseProps {
   email: string;
@@ -26,16 +25,3 @@ export interface UserProps extends BaseProps {
   uniqueId: string;
   cookie: string;
 }
-
-export type UserPropsKey = keyof UserProps;
-
-export type InsertResult = {
-  _id: ObjectId;
-};
-
-export type QueryResults = {
-  _id?: ObjectId;
-  insertedId?: string;
-  insertedCount?: number;
-  ops: object[];
-};

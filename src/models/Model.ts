@@ -2,65 +2,70 @@ import { FilterQuery, ObjectID } from 'mongodb';
 
 import Database from '../lib/Database';
 
-import { BaseProps, InsertResult, QueryResults } from '../typings';
+import { BaseProps } from '../typings';
 
-type SearchOptions = {
+type SearchOptions<T> = {
   collection: string;
-  criteria: object;
+  criteria: Partial<T>;
   limit?: number;
 };
 
-export default class Model<T extends BaseProps> {
+export default abstract class Model<T extends BaseProps> {
   protected static readonly collectionName: string;
 
   private db: Database;
 
-  protected constructor(collection: string) {
+  abstract async update(props: Partial<T>): Promise<void>;
+
+  protected constructor(protected props: T, collection: string) {
     this.db = Database.instance(collection);
   }
 
-  protected async insert<T extends BaseProps>(props: T): Promise<T> {
-    const [error, results] = await this.db.insert({ ...props });
-
-    if (results) return <T>{ ...results.ops[0] };
-    else throw error;
+  protected updateProps<K extends keyof T>(key: K, value: T[K]): void {
+    this.props[key] = value;
   }
 
-  protected static update_one(
+  protected async save(): Promise<this> {
+    const result = await this.db.insert({ ...this.props });
+
+    this.props = <T>{ ...result };
+
+    return this;
+  }
+
+  protected static updateOne<T>(
     collection: string,
-    searchProps: object,
-    propsToUpdate: object
+    searchProps: Partial<T>,
+    props: T
   ): Promise<boolean> {
-    return Database.instance(collection).update_one(searchProps, {
-      $set: propsToUpdate,
+    return Database.instance(collection).updateOne(searchProps, {
+      $set: props,
     });
   }
 
-  protected static search_one({
+  protected static searchOne<T>({
     collection,
     criteria,
-  }: SearchOptions): Promise<object | null> {
-    return Database.instance(collection).find(criteria, { limit: 1 });
+  }: SearchOptions<T>): Promise<T | null> {
+    return Database.instance(collection).findOne<T>(criteria, { limit: 1 });
   }
 
-  protected static search({
+  protected static search<T>({
     collection,
     criteria,
     limit,
-  }: SearchOptions): Promise<object[] | null> {
-    return <Promise<object[] | null>>(
-      Database.instance(collection).find(criteria, { limit })
-    );
+  }: SearchOptions<T>): Promise<T[] | null> {
+    return Database.instance(collection).findAll<T>(criteria, { limit });
   }
 
-  protected static remove(
+  protected static remove<T>(
     collection: string,
-    criteria: FilterQuery<object>
+    criteria: Partial<T>
   ): Promise<boolean> {
     return Database.instance(collection).delete(criteria);
   }
 
-  public static delete_all(): Promise<boolean> {
-    return Database.instance(this.collectionName).drop_collection();
+  public static deleteAll(): Promise<boolean> {
+    return Database.instance(this.collectionName).dropCollection();
   }
 }

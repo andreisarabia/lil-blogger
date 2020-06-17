@@ -6,11 +6,11 @@ import ArticleView from '../components/ArticleView';
 import ArticlesListView from '../components/ArticlesListView';
 import { ArticleProps } from '../typings';
 import { HomePageWrapper } from '../styles';
-import { sort_by_date } from '../util';
+import { sortByDate } from '../util';
 
 interface HomePageArticleState {
-  articlesList: ArticleProps[];
-  viewingArticle: ArticleProps;
+  articlesList: ArticleProps[] | null;
+  viewingArticle: ArticleProps | null;
 }
 
 export default class HomePage extends React.Component<
@@ -22,10 +22,6 @@ export default class HomePage extends React.Component<
     viewingArticle: null,
   };
 
-  constructor(props) {
-    super(props);
-  }
-
   componentDidMount = async () => {
     const { data } = await axios.get('http://localhost:3000/api/article/list');
     const { articlesList } = data as { articlesList: ArticleProps[] };
@@ -36,25 +32,25 @@ export default class HomePage extends React.Component<
     });
   };
 
-  handle_add_article = async (link: string) => {
+  handleAddArticle = async (link: string) => {
     const { data } = await axios.put('http://localhost:3000/api/article/save', {
       url: link,
     });
     const { msg, article } = data as { msg: string; article: ArticleProps };
 
     if (msg === 'ok') {
-      this.setState((state) => ({
+      this.setState(state => ({
         articlesList: [...state.articlesList, article].sort((a, b) =>
-          sort_by_date(a.createdOn, b.createdOn)
+          sortByDate(a.createdOn, b.createdOn)
         ),
         viewingArticle: article,
       }));
     }
   };
 
-  handle_article_focus = (url: string) => {
-    this.setState((state) => ({
-      viewingArticle: state.articlesList.find((article) => article.url === url),
+  handleArticleFocus = (url: string) => {
+    this.setState(state => ({
+      viewingArticle: state.articlesList.find(article => article.url === url),
     }));
   };
 
@@ -66,8 +62,8 @@ export default class HomePage extends React.Component<
         </Head>
         <ArticlesListView
           list={this.state.articlesList}
-          onArticleAdd={this.handle_add_article}
-          onArticleFocus={this.handle_article_focus}
+          onArticleAdd={this.handleAddArticle}
+          onArticleFocus={this.handleArticleFocus}
         />
         <ArticleView focusedArticle={this.state.viewingArticle} />
       </HomePageWrapper>

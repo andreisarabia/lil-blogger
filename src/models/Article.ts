@@ -3,19 +3,23 @@ import { v4 as uuidv4 } from 'uuid';
 
 import Model from './Model';
 import User from './User';
-import { extract_url_data } from '../util/parser';
+import { extractUrlData, toUniqueArray } from '../util';
 
-import { ArticleProps, ArticlePropsKey } from '../typings';
+import { ArticleProps } from '../typings';
 
 export default class Article extends Model<ArticleProps> {
   protected static readonly collectionName = 'articles';
 
-  protected constructor(protected props: ArticleProps) {
-    super(Article.collectionName);
+  protected constructor(props: ArticleProps) {
+    super(props, Article.collectionName);
   }
 
   public get id(): ObjectId {
     return <ObjectId>this.props._id;
+  }
+
+  public get tags(): string[] {
+    return <string[]>this.props.tags;
   }
 
   public get info(): Omit<ArticleProps, '_id' | 'userId'> {
@@ -31,84 +35,78 @@ export default class Article extends Model<ArticleProps> {
     return this.props.createdOn;
   }
 
-  private update_props<Key extends ArticlePropsKey>(
-    key: Key,
-    value: ArticleProps[Key]
-  ) {
-    this.props[key] = value;
+  public get url(): string {
+    return this.props.url;
   }
 
-  protected async save(): Promise<void> {
-    const updatedProps = await super.insert(this.props);
-    this.props = { ...updatedProps };
+  public get canonicalUrl(): string {
+    return this.props.canonicalUrl;
   }
 
-  public async update(propsToUpdate: Partial<ArticleProps>): Promise<void> {
-    let updatedProps: { [key: string]: any } = {};
+  private shouldRefreshArticleData(): boolean {
+    return this.url !== this.canonicalUrl;
+  }
 
-    for (const key of <ArticlePropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.props)) continue;
+  public setCanonicalUrl(canonicalUrl: string): this {
+    this.props.canonicalUrl = canonicalUrl;
 
-      const value = propsToUpdate[key];
+    return this;
+  }
 
-      if (value === undefined) continue;
+  public addTags(newTags: string[]): this {
+    this.props.tags = toUniqueArray([
+      ...this.props.tags,
+      ...newTags.map(tag => tag.trim()),
+    ]).sort();
 
-      if (key === 'canonicalUrl') {
-        // we want to get the original location's refreshed content
-        const newProps = await extract_url_data(<string>value);
+    return this;
+  }
 
-        updatedProps = { ...updatedProps, ...newProps };
-        this.props = { ...this.props, ...updatedProps };
-        break;
-      } else {
-        this.update_props(key, value);
-        updatedProps[key] = value;
-      }
+  public async update(): Promise<void> {
+    if (this.shouldRefreshArticleData()) {
+      const articleData = await extractUrlData(this.props.canonicalUrl);
+
+      this.props = { ...this.props, ...articleData };
     }
 
-    await Model.update_one(
+    await Article.updateOne(
       Article.collectionName,
       { _id: this.id },
-      updatedProps
+      this.props
     );
   }
 
   public static async create(url: string, user: User): Promise<Article> {
-    const cleanData = await extract_url_data(url);
-    const newArticle = new Article({
-      ...cleanData,
+    const data = await extractUrlData(url);
+
+    return new Article({
+      ...data,
       userId: user.id,
       uniqueId: uuidv4(),
-    });
-
-    await newArticle.save();
-
-    return newArticle;
+      tags: [],
+    }).save();
   }
 
   public static async find(
     criteria: Partial<ArticleProps>
   ): Promise<Article | null> {
-    const articleData = await super.search_one({
+    const articleData = await super.searchOne({
       collection: this.collectionName,
       criteria,
     });
 
-    return articleData ? new Article(<ArticleProps>articleData) : null;
+    return articleData ? new Article(articleData) : null;
   }
 
-  public static async find_all(
+  public static async findAll(
     criteria: Partial<ArticleProps>
   ): Promise<Article[] | null> {
     const articlesData = await super.search({
       collection: this.collectionName,
       criteria,
-      limit: 0,
     });
 
-    return articlesData
-      ? (<ArticleProps[]>articlesData).map((data) => new Article(data))
-      : null;
+    return articlesData ? articlesData.map(data => new Article(data)) : null;
   }
 
   public static delete(user: User, url: string): Promise<boolean> {

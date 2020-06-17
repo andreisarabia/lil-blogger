@@ -3,9 +3,9 @@ import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 
 import Model from './Model';
-import { is_email, is_safe_password } from '../util/validators';
+import { isEmail, isSafePassword } from '../util/validators';
 
-import { UserProps, UserPropsKey } from '../typings';
+import { UserProps } from '../typings';
 
 const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 50;
@@ -14,8 +14,8 @@ const SALT_ROUNDS = 10;
 export default class User extends Model<UserProps> {
   protected static readonly collectionName = 'users';
 
-  protected constructor(protected props: UserProps) {
-    super(User.collectionName);
+  protected constructor(props: UserProps) {
+    super(props, User.collectionName);
   }
 
   public get id(): ObjectId {
@@ -26,33 +26,14 @@ export default class User extends Model<UserProps> {
     return this.props.password;
   }
 
-  private update_props<Key extends UserPropsKey>(
-    key: Key,
-    value: UserProps[Key]
-  ) {
-    this.props[key] = value;
+  public setCookie(cookie: string): this {
+    this.props.cookie = cookie;
+
+    return this;
   }
 
-  protected async save(): Promise<void> {
-    const updatedProps = await super.insert(this.props);
-    this.props = { ...updatedProps };
-  }
-
-  public async update(propsToUpdate: Partial<UserProps>): Promise<void> {
-    const updatedProps: { [key: string]: any } = {};
-
-    for (const key of <UserPropsKey[]>Object.keys(propsToUpdate)) {
-      if (!(key in this.props)) continue;
-
-      const value = propsToUpdate[key];
-
-      if (value === undefined) continue;
-
-      this.update_props(key, value);
-      updatedProps[key] = value;
-    }
-
-    await Model.update_one(User.collectionName, { _id: this.id }, updatedProps);
+  public async update(): Promise<void> {
+    await Model.updateOne(User.collectionName, { _id: this.id }, this.props);
   }
 
   public static async create(
@@ -61,30 +42,29 @@ export default class User extends Model<UserProps> {
     cookie: string
   ): Promise<void> {
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    const newUser = new User({
+
+    await new User({
       email,
       cookie,
       password: hash,
       uniqueId: uuidv4(),
-    });
-
-    await newUser.save();
+    }).save();
   }
 
   public static async find(criteria: Partial<UserProps>): Promise<User | null> {
-    const userData = await super.search_one({
+    const userData = await super.searchOne({
       collection: this.collectionName,
       criteria,
     });
 
-    return userData ? new User(<UserProps>userData) : null;
+    return userData ? new User(userData) : null;
   }
 
-  public static async validate_credentials(
+  public static async attemptLogin(
     email: string,
     password: string
   ): Promise<User | null> {
-    const user: User | null = await this.find({ email });
+    const user = await this.find({ email });
     const isValidPassword = await bcrypt.compare(
       password,
       user ? user.password : ''
@@ -93,13 +73,13 @@ export default class User extends Model<UserProps> {
     return user && isValidPassword ? user : null;
   }
 
-  public static async verify_user_data(
+  public static async verifyUserData(
     email: string,
     password: string
   ): Promise<string[] | null> {
     const errors: string[] = [];
 
-    if (!is_email(email) || (await this.exists(email)))
+    if (!isEmail(email) || (await this.exists(email)))
       errors.push('Email is not valid.');
 
     if (password.length < MIN_PASSWORD_LENGTH)
@@ -107,7 +87,7 @@ export default class User extends Model<UserProps> {
     else if (password.length > MAX_PASSWORD_LENGTH)
       errors.push('Password is too long.');
 
-    if (!is_safe_password(password))
+    if (!isSafePassword(password))
       errors.push(
         `Your password contains invalid characters. Please use:
         At least one lowercase letter
@@ -120,12 +100,11 @@ export default class User extends Model<UserProps> {
   }
 
   private static async exists(email: string): Promise<boolean> {
-    const userData = await super.search({
+    const userData = await super.searchOne<UserProps>({
       collection: this.collectionName,
       criteria: { email },
-      limit: 1,
     });
 
-    return Boolean(<UserProps | null>userData);
+    return Boolean(userData);
   }
 }

@@ -1,4 +1,7 @@
-export const sort_by_date = (firstDate: string, secondDate: string) => {
+export const sortByDate = (
+  firstDate: string,
+  secondDate: string
+): 1 | 0 | -1 => {
   const aMilleseconds = new Date(firstDate).getMilliseconds();
   const bMilleseconds = new Date(secondDate).getMilliseconds();
 

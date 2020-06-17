@@ -4,14 +4,10 @@ import {
   FindOneOptions,
   UpdateQuery,
   InsertOneWriteOpResult,
-  InsertWriteOpResult,
   FindAndModifyWriteOpResultObject,
   UpdateWriteOpResult,
   MongoClient,
-  ObjectId,
 } from 'mongodb';
-
-import { InsertResult, QueryResults, BaseProps } from '../typings';
 
 /**
  * Each instance of a database is only created once, through the
@@ -24,58 +20,57 @@ export default class Database {
 
   private dbCollection: Collection;
 
-  private constructor(private collection: string) {
+  private constructor(collection: string) {
     this.dbCollection = (<MongoClient>Database.client)
       .db()
       .collection(collection);
   }
 
-  public async insert<T extends BaseProps>(
-    dataObj: T
-  ): Promise<[Error | null, QueryResults | null]> {
-    try {
-      const result = await this.dbCollection.insertOne(dataObj);
+  public async insert<T>(dataObj: T): Promise<T | null> {
+    const result: InsertOneWriteOpResult<any> = await this.dbCollection.insertOne(
+      dataObj
+    );
 
-      return [
-        null,
-        <QueryResults>{ ops: (<InsertOneWriteOpResult<any>>result).ops },
-      ];
-    } catch (error) {
-      return [error, null];
-    }
+    return <T>result.ops[0];
   }
 
-  public async find(
-    criteria: FilterQuery<any>,
+  public findOne<T>(
+    criteria: FilterQuery<Partial<T>>,
     options?: FindOneOptions
-  ): Promise<object | object[] | any[] | null> {
-    let results: object | object[] | any[] | null;
-
-    if (options?.limit === 1) {
-      results = await this.dbCollection.findOne(criteria);
-    } else {
-      results = await this.dbCollection.find(criteria, options).toArray();
-    }
-
-    return results;
+  ): Promise<T | null> {
+    return this.dbCollection.findOne(criteria, options);
   }
 
-  public async update_one(
+  public async findAll<T>(
+    criteria: FilterQuery<Partial<T>>,
+    options?: FindOneOptions
+  ): Promise<T[] | null> {
+    const results = await this.dbCollection.find(criteria, options).toArray();
+
+    return results.length > 0 ? results : null;
+  }
+
+  public async updateOne(
     searchProps: object,
     props: UpdateQuery<any>
   ): Promise<boolean> {
-    const result = await this.dbCollection.updateOne(searchProps, props);
+    const { result }: UpdateWriteOpResult = await this.dbCollection.updateOne(
+      searchProps,
+      props
+    );
 
-    return (<UpdateWriteOpResult>result).result.ok === 1;
+    return result.ok === 1;
   }
 
   public async delete(criteria: FilterQuery<object>): Promise<boolean> {
-    const result = await this.dbCollection.findOneAndDelete(criteria);
+    const result: FindAndModifyWriteOpResultObject<any> = await this.dbCollection.findOneAndDelete(
+      criteria
+    );
 
-    return (<FindAndModifyWriteOpResultObject<any>>result).ok === 1;
+    return result.ok === 1;
   }
 
-  public async drop_collection(): Promise<boolean> {
+  public async dropCollection(): Promise<boolean> {
     try {
       await this.dbCollection.drop();
       return true;
@@ -86,16 +81,16 @@ export default class Database {
   }
 
   public static async initialize(): Promise<void> {
-    if (!Database.client) {
-      const mongoUri =
-        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
+    if (Database.client) return;
 
-      Database.client = await MongoClient.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        poolSize: 20,
-      });
-    }
+    const mongoUri =
+      process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/article_saver';
+
+    Database.client = await MongoClient.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      poolSize: 20,
+    });
   }
 
   public static instance(collection: string): Database {

@@ -26,16 +26,17 @@ export default class AuthRouter extends Router {
     super('/auth', { requiresAuth: false });
 
     this.instance
-      .get('/reset', (ctx) => this.reset_app(ctx))
-      .post('/login', (ctx) => this.login(ctx))
-      .post('/register', (ctx) => this.register(ctx));
+      .get('/reset', ctx => this.resetApp(ctx))
+      .post('/login', ctx => this.login(ctx))
+      .post('/register', ctx => this.register(ctx));
   }
 
-  private async reset_app(ctx: Koa.ParameterizedContext): Promise<void> {
+  private async resetApp(ctx: Koa.ParameterizedContext): Promise<void> {
     if (!config.IS_DEV) return;
 
     try {
-      await Promise.all([Article.delete_all(), User.delete_all()]);
+      await Promise.all([Article.deleteAll(), User.deleteAll()]);
+      ctx.session = null;
       ctx.redirect('/');
     } catch (error) {
       console.error(error);
@@ -44,15 +45,16 @@ export default class AuthRouter extends Router {
   }
 
   private async login(ctx: Koa.ParameterizedContext) {
-    const { email = '', password = '' } = <AccountLoginParameters>(
-      ctx.request.body
-    );
-    const user: User | null = await User.validate_credentials(email, password);
+    const {
+      email = '',
+      password = '',
+    }: AccountLoginParameters = ctx.request.body;
+    const user: User | null = await User.attemptLogin(email, password);
 
     if (user) {
       const cookie = uuidv4();
 
-      await user.update({ cookie });
+      await user.setCookie(cookie).update();
       ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { error: null, msg: 'ok' };
@@ -68,10 +70,11 @@ export default class AuthRouter extends Router {
   }
 
   private async register(ctx: Koa.ParameterizedContext) {
-    const { email = '', password = '' } = <AccountLoginParameters>(
-      ctx.request.body
-    );
-    const errors = await User.verify_user_data(email, password);
+    const {
+      email = '',
+      password = '',
+    }: AccountLoginParameters = ctx.request.body;
+    const errors = await User.verifyUserData(email, password);
 
     if (errors) {
       ctx.status = 401;
@@ -81,7 +84,6 @@ export default class AuthRouter extends Router {
       const cookie = uuidv4();
 
       await User.create(email, password, cookie);
-
       ctx.cookies.set(Router.authCookieName, cookie, this.sessionConfig);
 
       ctx.body = { errors: null, msg: 'ok' };

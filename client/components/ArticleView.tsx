@@ -8,12 +8,13 @@ interface ArticleViewProps {
 }
 
 export default class ArticleView extends React.Component<ArticleViewProps> {
-  constructor(props) {
+  constructor(props: ArticleViewProps) {
     super(props);
   }
 
   render = () => {
     const { focusedArticle: article } = this.props;
+
     return (
       <ArticleViewSection>
         <h2>{article ? article.title : ''}</h2>
@@ -35,7 +36,9 @@ export default class ArticleView extends React.Component<ArticleViewProps> {
         )}
         <div
           className='article-view'
-          dangerouslySetInnerHTML={{ __html: article ? article.content : '' }}
+          dangerouslySetInnerHTML={{
+            __html: article ? (article.content as string) : '',
+          }}
         />
       </ArticleViewSection>
     );

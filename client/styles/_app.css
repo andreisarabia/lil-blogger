@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css?family=Montserrat&display=swap');
+@import url('https://fonts.googleapis.com/css?family=Nunito&display=swap');
 
 body {
-  font-family: Montserrat, Arial, sans-serif;
+  font-family: Nunito, Arial, sans-serif;
   margin: 0;
   background: #e5e1ea;
   height: 100vh;
